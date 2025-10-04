@@ -1,4 +1,8 @@
 import { INITIAL_BOARD, COLORS, getPieceColor } from './constants.js';
+import {
+    createHybridPiece,
+    determinePlacementSquare
+} from './combinationRules.js';
 
 // Create a deep copy of the board
 export const copyBoard = (board) => {
@@ -55,4 +59,44 @@ export const addCapturedPiece = (capturedPieces, piece) => {
     }
 
     return newCapturedPieces;
+};
+
+// Execute a combination action
+export const executeCombination = (board, row1, col1, row2, col2, anchorRow, anchorCol) => {
+    const piece1 = board[row1][col1];
+    const piece2 = board[row2][col2];
+
+    // Create the hybrid piece
+    const hybridPiece = createHybridPiece(piece1, piece2);
+
+    if (!hybridPiece) return null;
+
+    // Determine placement square
+    const placementSquare = determinePlacementSquare(
+        piece1, row1, col1,
+        piece2, row2, col2,
+        anchorRow, anchorCol
+    );
+
+    // Create new board
+    const newBoard = copyBoard(board);
+
+    // Place hybrid on placement square
+    newBoard[placementSquare.row][placementSquare.col] = hybridPiece;
+
+    // Clear the other square
+    if (placementSquare.row === row1 && placementSquare.col === col1) {
+        newBoard[row2][col2] = '';
+    } else {
+        newBoard[row1][col1] = '';
+    }
+
+    return {
+        board: newBoard,
+        hybridPiece,
+        placementSquare,
+        consumedSquare: placementSquare.row === row1 && placementSquare.col === col1
+            ? { row: row2, col: col2 }
+            : { row: row1, col: col1 }
+    };
 };

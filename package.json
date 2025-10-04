@@ -1,9 +1,8 @@
 {
-  "name": "chess-game",
+  "name": "my-tailwind-app",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.0.0",
   "type": "module",
-  "description": "Interactive chess game built with React, Tailwind CSS, and Vite",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

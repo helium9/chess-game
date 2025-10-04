@@ -1,4 +1,4 @@
-import { PIECES, isWhitePiece, isOpponentPiece, isSameColor } from './constants.js';
+import { PIECES, isWhitePiece, isOpponentPiece, isSameColor, isHybridPiece, getHybridComponents } from './constants.js';
 
 // Check if a position is within the board
 export const isValidPosition = (row, col) => {
@@ -104,7 +104,7 @@ export const isPathClear = (board, fromRow, fromCol, toRow, toCol) => {
 };
 
 // Main validation function
-export const isValidMove = (board, fromRow, fromCol, toRow, toCol) => {
+export const isValidMove = (board, fromRow, fromCol, toRow, toCol, allowFriendlyDestination = false) => {
     // Can't move to same position
     if (fromRow === toRow && fromCol === toCol) {
         return false;
@@ -123,13 +123,18 @@ export const isValidMove = (board, fromRow, fromCol, toRow, toCol) => {
         return false;
     }
 
-    // Can't capture own piece
-    if (targetPiece && isSameColor(piece, targetPiece)) {
+    // Can't capture own piece (unless explicitly allowed for combination checks)
+    if (targetPiece && isSameColor(piece, targetPiece) && !allowFriendlyDestination) {
         return false;
     }
 
     // Validate based on piece type
     const pieceType = piece.toLowerCase();
+
+    // Handle hybrid pieces
+    if (isHybridPiece(piece)) {
+        return isValidHybridMove(board, fromRow, fromCol, toRow, toCol, piece);
+    }
 
     switch (pieceType) {
         case PIECES.PAWN:
@@ -147,4 +152,36 @@ export const isValidMove = (board, fromRow, fromCol, toRow, toCol) => {
         default:
             return false;
     }
+};
+
+// Validate hybrid piece moves (union of component moves)
+export const isValidHybridMove = (board, fromRow, fromCol, toRow, toCol, hybridPiece) => {
+    const components = getHybridComponents(hybridPiece);
+
+    // Try each component's movement rules
+    for (const componentPiece of components) {
+        const pieceType = componentPiece.toLowerCase();
+        let isValid = false;
+
+        switch (pieceType) {
+            case PIECES.ROOK:
+                isValid = isValidRookMove(board, fromRow, fromCol, toRow, toCol);
+                break;
+            case PIECES.BISHOP:
+                isValid = isValidBishopMove(board, fromRow, fromCol, toRow, toCol);
+                break;
+            case PIECES.KNIGHT:
+                isValid = isValidKnightMove(fromRow, fromCol, toRow, toCol);
+                break;
+            case PIECES.QUEEN:
+                isValid = isValidQueenMove(board, fromRow, fromCol, toRow, toCol);
+                break;
+            default:
+                isValid = false;
+        }
+
+        if (isValid) return true;
+    }
+
+    return false;
 };

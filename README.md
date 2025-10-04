@@ -1,168 +1,171 @@
-# ♟️ Interactive Chess Game
+# Chess Piece Combination POC
 
-A fully playable chess game built with React, Tailwind CSS, and Vite. Features complete chess rules implementation, legal move highlighting, check detection, and move validation.
+A minimal chess-like UI prototype for experimenting with piece-combination mechanics. This is a frontend-only, serverless POC with clean, modular architecture.
 
-![Chess Game](https://img.shields.io/badge/React-19.1-blue)
-![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38bdf8)
-![Vite](https://img.shields.io/badge/Vite-7.1-646cff)
+## Features
 
-## ✨ Features
+✅ **8×8 Interactive Board** with labeled pieces  
+✅ **JSON-Driven State** - Edit pieces via textarea  
+✅ **Queen-Like Movement** - Mock movement in 8 directions  
+✅ **Piece Merging** - Combine adjacent friendly pieces  
+✅ **Piece Splitting** - Decombine merged pieces  
+✅ **Input Validation** - Bounds checking and error handling  
+✅ **Clean Architecture** - Logic separated into utility modules  
 
-### Complete Chess Rules
-- ♟️ **Pawn**: Forward movement, two-square start option, diagonal captures
-- ♜ **Rook**: Horizontal and vertical movement
-- ♞ **Knight**: L-shaped jumps over other pieces
-- ♝ **Bishop**: Diagonal movement
-- ♕ **Queen**: Combination of rook and bishop movements
-- ♔ **King**: One square in any direction
-
-### Interactive Gameplay
-- ✅ Click-to-select piece interaction
-- ✅ Legal moves highlighted in green
-- ✅ Selected piece highlighted in yellow
-- ✅ Visual feedback for all actions
-- ✅ Automatic turn switching
-- ✅ Move validation and enforcement
-
-### Game Logic
-- ✅ Turn management (White starts)
-- ✅ Piece capture tracking for both sides
-- ✅ Complete move history
-- ✅ Path blocking detection
-- ✅ Prevents illegal moves that would put king in check
-- ✅ Check detection with warnings
-- ✅ Proper piece movement validation
-
-### User Interface
-- 🎨 Beautiful Unicode chess pieces (♔ ♕ ♖ ♗ ♘ ♙)
-- 🎨 Captured pieces display
-- 🎨 Status messages and turn indicators
-- 🎨 Reset game functionality
-- 🎨 Responsive design
-- 🎨 Color-coded board squares
-- 🎨 Board coordinate labels (a-h)
-- 🎨 Interactive legend
-
-## 🚀 Quick Start
-
-### Installation
+## Quick Start
 
 ```bash
-# Clone the repository
-git clone https://github.com/mapcrafter2048/chess-game.git
-cd chess-game
-
 # Install dependencies
 npm install
 
-# Start development server
+# Start dev server
 npm run dev
+
+# Open http://localhost:5173
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+## How to Use
 
-### Build for Production
+### Basic Operations
 
-```bash
-npm run build
-npm run preview
+1. **Select a piece**: Click on any piece to select it
+   - Blue ring appears around selected piece
+   - Green dots show valid moves (queen-like pattern)
+
+2. **Move a piece**: Click on any green dot to move there
+
+3. **Merge pieces**: 
+   - Select a piece
+   - Adjacent friendly pieces will show a "Merge" button
+   - Click "Merge" to combine them into one piece
+   - Merged pieces have a purple border
+
+4. **Decombine pieces**:
+   - Select a combined piece (purple border)
+   - Click the "Decombine" button
+   - Piece splits back into two original pieces
+
+5. **Edit JSON**: 
+   - Modify the textarea on the right to add/remove/change pieces
+   - Board updates automatically when JSON changes
+   - Validation errors are shown below textarea
+
+### JSON Format
+
+```json
+[
+  {
+    "id": "w-rook-1",
+    "team": "white",
+    "type": "rook",
+    "pos": { "x": 0, "y": 0 },
+    "isCombined": false,
+    "combinedOf": ["id1", "id2"]
+  }
+]
 ```
 
-## 🎮 How to Play
+**Required Fields**:
+- `id`: Unique identifier (string)
+- `team`: "white" or "black"
+- `type`: Piece type (string, e.g., "rook", "knight")
+- `pos`: Position object with `x` and `y` (0-7)
 
-1. **Select a piece**: Click on any piece of the current player's color
-   - Selected piece will be highlighted in yellow
-   - All legal moves will be shown as green squares
+**Optional Fields**:
+- `isCombined`: Boolean, true if this is a combined piece
+- `combinedOf`: Array of original piece IDs (for combined pieces)
+- `flags`: Object with `frozen`, `canCombine`, `canDecombine` flags
+- `meta`: Free-form object for future engine info
 
-2. **Move the piece**: Click on any highlighted green square
-   - The piece will move to that position
-   - If capturing, the opponent's piece will be removed
-   - Turn automatically switches to the other player
+## Code Architecture
 
-3. **Game rules**:
-   - White moves first
-   - You can only move your own pieces
-   - You cannot move into check
-   - Captured pieces are displayed on the sides
-   - The game warns you when a king is in check
-
-4. **Reset game**: Click the "Reset Game" button to start over
-
-## 📁 Project Structure
+### Project Structure
 
 ```
-chess-game/
-├── src/
-│   ├── components/
-│   │   └── ChessBoard.jsx      # Main game component
-│   ├── utils/
-│   │   ├── constants.js         # Chess constants and helpers
-│   │   ├── moveValidation.js    # Move validation rules
-│   │   ├── moveCalculator.js    # Legal move calculation
-│   │   └── gameState.js         # Game state management
-│   ├── App.jsx                  # App wrapper
-│   ├── main.jsx                 # React entry point
-│   └── index.css                # Tailwind styles
-├── public/
-├── index.html
-├── package.json
-├── vite.config.js
-├── tailwind.config.js
-├── postcss.config.js
-└── eslint.config.js
+src/
+├── components/
+│   └── ChessBoard.jsx      # Main UI component
+├── utils/
+│   ├── boardUtils.js       # Board calculations
+│   ├── pieceUtils.js       # Merge/split logic
+│   └── validation.js       # Input validation
+├── App.jsx
+└── main.jsx
 ```
-
-## 🏗️ Architecture
-
-### Clean Code Organization
-
-The project follows a modular architecture with clear separation of concerns:
-
-1. **`constants.js`**: Chess piece types, colors, symbols, and utility functions
-2. **`moveValidation.js`**: Core logic for validating moves per piece type
-3. **`moveCalculator.js`**: Calculates all legal moves and handles check detection
-4. **`gameState.js`**: Manages game state, turns, and move history
-5. **`ChessBoard.jsx`**: UI component handling user interactions
 
 ### Key Design Principles
 
-- **Separation of Concerns**: Logic separated from UI
-- **Pure Functions**: Most utility functions are pure for predictability
-- **Immutability**: Game state updates create new objects
-- **Modular**: Each file has a single, clear responsibility
+1. **Separation of Concerns**: UI component only handles rendering; logic is in utilities
+2. **Immutable Operations**: All functions return new arrays/objects
+3. **Pure Functions**: Utilities have no side effects
+4. **Explicit Validation**: All inputs validated with detailed errors
+5. **Deterministic IDs**: Combined pieces have sorted IDs for consistency
 
-## 🛠️ Tech Stack
+See [CODE_STRUCTURE.md](./CODE_STRUCTURE.md) for detailed documentation.
 
-- **React 19** - UI framework with React Compiler
-- **Vite 7** - Fast build tool and dev server
-- **Tailwind CSS 3** - Utility-first styling
-- **ESLint** - Code quality and consistency
+## Rules & Mechanics
 
-## 🎯 Future Enhancements
+### Merge Rules
 
-Potential features to add:
+Two pieces can merge if:
+- ✅ Same team (white + white or black + black)
+- ✅ Adjacent (8-way adjacency: orthogonal + diagonal)
+- ✅ Neither piece is already combined
+- ✅ Neither piece is frozen
 
-- [ ] Checkmate detection
-- [ ] Stalemate detection
-- [ ] En passant capture
-- [ ] Castling
-- [ ] Pawn promotion
-- [ ] Move timer
-- [ ] Undo/Redo moves
-- [ ] Save/Load game state
-- [ ] Player vs AI
-- [ ] Multiplayer support
-- [ ] Move notation display (algebraic notation)
-- [ ] Game replay
+**Result**: New combined piece with:
+- Deterministic ID: `cmb_<id1>__<id2>` (sorted)
+- Combined type: `"rook+bishop"`
+- Purple border to indicate combined status
+- Position of the primary (selected) piece
 
-## 🧪 Development
+### Decombine Rules
+
+A combined piece can split if:
+- ✅ It's a combined piece (`isCombined: true`)
+- ✅ Not frozen
+- ✅ Has at least one adjacent empty square
+
+**Result**: Two original pieces restored:
+- One at current position
+- Other in adjacent empty square
+- Original IDs and types preserved
+
+### Movement
+
+- All pieces move like queens (mock behavior)
+- 8 directions: horizontal, vertical, and diagonal
+- Extends to board edge
+- **Blockers are ignored** (this is a POC; real collision detection comes later)
+
+## Validation
+
+The app validates:
+
+- ✅ JSON syntax and structure
+- ✅ Position bounds (x, y must be 0-7)
+- ✅ Required fields (id, team, type, pos)
+- ✅ Valid team values ("white" or "black")
+- ✅ Proper data types
+
+Errors are displayed below the JSON textarea with specific details.
+
+## Future Extensions
+
+This POC is designed to support:
+
+- **Real move generation**: Replace `calculateQueenMoves()` with piece-specific logic
+- **Collision detection**: Add blocker checking in move validation
+- **Turn enforcement**: Use the `turn` field for gameplay
+- **Networking**: Add WebRTC sync layer (UI remains unchanged)
+- **Custom rules**: Extend validation and merge logic in utilities
+- **Advanced cooldowns**: Use `flags.frozen` and `meta.cooldownRemaining`
+
+## Development
 
 ```bash
 # Run linter
 npm run lint
-
-# Run dev server with HMR
-npm run dev
 
 # Build for production
 npm run build
@@ -171,24 +174,34 @@ npm run build
 npm run preview
 ```
 
-## 📝 License
+## Tech Stack
 
-MIT License - feel free to use this project for learning or as a starting point for your own chess game!
+- **React 19** - UI framework
+- **Vite** - Build tool and dev server
+- **Tailwind CSS** - Styling
+- **ESLint** - Code linting
 
-## 👤 Author
+## Contributing
 
-**Aadish Jain**
-- GitHub: [@mapcrafter2048](https://github.com/mapcrafter2048)
-- Location: Indore, India
-- Student at IIT Indore (Computer Science Engineering)
+This is a POC for experimentation. To add new features:
 
-## 🙏 Acknowledgments
+1. **New movement patterns**: Edit `src/utils/boardUtils.js`
+2. **New merge rules**: Edit `src/utils/pieceUtils.js`
+3. **New validations**: Edit `src/utils/validation.js`
+4. **UI changes**: Edit `src/components/ChessBoard.jsx`
 
-- Chess piece Unicode symbols
-- React team for React 19 and React Compiler
-- Tailwind CSS for amazing utility classes
-- Vite for blazing fast development experience
+Keep logic in utilities and UI in components!
 
----
+## License
 
-**Enjoy playing chess! ♟️**
+MIT
+
+## React Compiler
+
+The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
+
+Note: This will impact Vite dev & build performances.
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
