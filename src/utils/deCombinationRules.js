@@ -274,3 +274,30 @@ export const validateDeCombination = (board, row, col, spawnSquare, currentTurn)
         allLegalAssignments: assignmentResult.legal
     };
 };
+
+/**
+ * Select deterministic assignment when multiple are legal
+ * Uses a stable, reproducible rule (no randomness)
+ * 
+ * Rule: Prefer 'type1' (first component stays) over 'type2'
+ * This ensures the same assignment is chosen across all clients
+ */
+export const selectDeterministicAssignment = (assignments) => {
+    if (!assignments || assignments.length === 0) {
+        throw new Error('No assignments to select from');
+    }
+
+    // If only one assignment, return it
+    if (assignments.length === 1) {
+        return assignments[0];
+    }
+
+    // Find 'type1' assignment (first component stays)
+    const type1 = assignments.find(a => a.type === 'type1');
+    if (type1) {
+        return type1;
+    }
+
+    // Fallback to first assignment (should not happen with proper implementation)
+    return assignments[0];
+};

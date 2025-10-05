@@ -8,7 +8,13 @@ import {
     isCurrentPlayersPiece,
     addMoveToHistory,
     addCapturedPiece,
-    executeCombination
+    executeCombination,
+    saveStateForUndo,
+    undoMove,
+    redoMove,
+    canUndo,
+    canRedo,
+    copyBoard
 } from '../utils/gameState.js';
 import {
     findEligiblePairs,
@@ -67,6 +73,16 @@ const ChessBoard = () => {
 
     // Legacy state for backward compatibility (will migrate gradually)
     const [eligibleHybrids, setEligibleHybrids] = useState([]);
+
+    // Promotion dialog state
+    const [promotionDialog, setPromotionDialog] = useState({
+        isOpen: false,
+        fromRow: null,
+        fromCol: null,
+        toRow: null,
+        toCol: null,
+        capturedPiece: null
+    });
 
     // Memoize eligible pairs calculation (Issue #9)
     const memoizedEligiblePairs = useMemo(() => {
@@ -251,6 +267,44 @@ const ChessBoard = () => {
         // If a square is already selected
         if (selectedSquare) {
             const { row: fromRow, col: fromCol } = selectedSquare;
+            const movingPiece = gameState.board[fromRow][fromCol];
+
+            // Check for castling attempt
+            const isKing = movingPiece.toLowerCase() === 'k';
+            if (isKing) {
+                const rank = gameState.currentTurn === COLORS.WHITE ? 7 : 0;
+                const clickedPiece = gameState.board[row][col];
+
+                // Check if clicking on own rook (castling in traditional way)
+                if (row === rank && clickedPiece && clickedPiece.toLowerCase() === 'r' &&
+                    isCurrentPlayersPiece(clickedPiece, gameState.currentTurn)) {
+                    // Determine if kingside or queenside
+                    const isKingSide = col === 7;
+                    const isQueenSide = col === 0;
+
+                    if (isKingSide && canCastle(true)) {
+                        executeCastle(true);
+                        return;
+                    } else if (isQueenSide && canCastle(false)) {
+                        executeCastle(false);
+                        return;
+                    } else {
+                        setMessage(announceError('Cannot castle in this position'));
+                        return;
+                    }
+                }
+
+                // Check if clicking 2 squares away (castling in modern way)
+                if (row === rank && fromCol === 4) {
+                    if (col === 6 && canCastle(true)) {
+                        executeCastle(true);
+                        return;
+                    } else if (col === 2 && canCastle(false)) {
+                        executeCastle(false);
+                        return;
+                    }
+                }
+            }
 
             // Check if clicked square is a legal move
             const isLegalMove = legalMoves.some(move => move.row === row && move.col === col);
@@ -264,15 +318,79 @@ const ChessBoard = () => {
                     return;
                 }
 
+                // Check if this is a pawn promotion
+                const movingPiece = gameState.board[fromRow][fromCol];
+                const isPawn = movingPiece.toLowerCase() === 'p';
+                const promotionRank = gameState.currentTurn === COLORS.WHITE ? 0 : 7;
+
+                if (isPawn && row === promotionRank) {
+                    // Save state before opening promotion dialog
+                    const newGameState = saveStateForUndo(gameState);
+                    setGameState(newGameState);
+
+                    // Open promotion dialog
+                    const capturedPiece = gameState.board[row][col];
+                    setPromotionDialog({
+                        isOpen: true,
+                        fromRow,
+                        fromCol,
+                        toRow: row,
+                        toCol: col,
+                        capturedPiece
+                    });
+                    setSelectedSquare(null);
+                    setLegalMoves([]);
+                    setMessage('Choose promotion piece');
+                    return;
+                }
+
+                // Save state for undo
+                const stateWithUndo = saveStateForUndo(gameState);
+
                 // Execute the move
                 const capturedPiece = gameState.board[row][col];
                 const newBoard = makeMove(gameState.board, fromRow, fromCol, row, col);
                 const newTurn = switchTurn(gameState.currentTurn);
 
+                // Update castling rights if king or rook moved
+                let newCastlingRights = { ...stateWithUndo.castlingRights };
+                const movingPieceType = movingPiece.toLowerCase();
+
+                if (movingPieceType === 'k') {
+                    // King moved - lose all castling rights
+                    newCastlingRights[gameState.currentTurn] = {
+                        kingSide: false,
+                        queenSide: false
+                    };
+                } else if (movingPieceType === 'r') {
+                    // Rook moved - lose castling right for that side
+                    const rank = gameState.currentTurn === COLORS.WHITE ? 7 : 0;
+                    if (fromRow === rank) {
+                        if (fromCol === 7) {
+                            newCastlingRights[gameState.currentTurn].kingSide = false;
+                        } else if (fromCol === 0) {
+                            newCastlingRights[gameState.currentTurn].queenSide = false;
+                        }
+                    }
+                }
+
+                // If rook was captured, update opponent's castling rights
+                if (capturedPiece && capturedPiece.toLowerCase() === 'r') {
+                    const opponentColor = gameState.currentTurn === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE;
+                    const opponentRank = opponentColor === COLORS.WHITE ? 7 : 0;
+                    if (row === opponentRank) {
+                        if (col === 7) {
+                            newCastlingRights[opponentColor].kingSide = false;
+                        } else if (col === 0) {
+                            newCastlingRights[opponentColor].queenSide = false;
+                        }
+                    }
+                }
+
                 // Update captured pieces
-                let newCapturedPieces = gameState.capturedPieces;
+                let newCapturedPieces = stateWithUndo.capturedPieces;
                 if (capturedPiece) {
-                    newCapturedPieces = addCapturedPiece(gameState.capturedPieces, capturedPiece);
+                    newCapturedPieces = addCapturedPiece(stateWithUndo.capturedPieces, capturedPiece);
                 }
 
                 // Add to move history
@@ -283,7 +401,7 @@ const ChessBoard = () => {
                     captured: capturedPiece,
                     turn: gameState.currentTurn
                 };
-                const newMoveHistory = addMoveToHistory(gameState.moveHistory, move);
+                const newMoveHistory = addMoveToHistory(stateWithUndo.moveHistory, move);
 
                 // Check if opponent is in check
                 const opponentInCheck = isInCheck(newBoard, newTurn);
@@ -293,10 +411,12 @@ const ChessBoard = () => {
                 }
 
                 setGameState({
+                    ...stateWithUndo,
                     board: newBoard,
                     currentTurn: newTurn,
                     moveHistory: newMoveHistory,
-                    capturedPieces: newCapturedPieces
+                    capturedPieces: newCapturedPieces,
+                    castlingRights: newCastlingRights
                 });
                 setMessage(statusMessage);
                 setSelectedSquare(null);
@@ -308,6 +428,18 @@ const ChessBoard = () => {
                 const safeMoves = moves.filter(move =>
                     !wouldBeInCheck(gameState.board, row, col, move.row, move.col, gameState.currentTurn)
                 );
+
+                // Add castling destinations if king is selected
+                if (piece.toLowerCase() === 'k') {
+                    const rank = gameState.currentTurn === COLORS.WHITE ? 7 : 0;
+                    if (canCastle(true)) {
+                        safeMoves.push({ row: rank, col: 6 }); // Kingside destination
+                    }
+                    if (canCastle(false)) {
+                        safeMoves.push({ row: rank, col: 2 }); // Queenside destination
+                    }
+                }
+
                 setSelectedSquare({ row, col });
                 setLegalMoves(safeMoves);
                 setMessage(`Selected ${PIECE_SYMBOLS[piece]}. Click a highlighted square to move.`);
@@ -325,6 +457,18 @@ const ChessBoard = () => {
                 const safeMoves = moves.filter(move =>
                     !wouldBeInCheck(gameState.board, row, col, move.row, move.col, gameState.currentTurn)
                 );
+
+                // Add castling destinations if king is selected
+                if (piece.toLowerCase() === 'k') {
+                    const rank = gameState.currentTurn === COLORS.WHITE ? 7 : 0;
+                    if (canCastle(true)) {
+                        safeMoves.push({ row: rank, col: 6 }); // Kingside destination
+                    }
+                    if (canCastle(false)) {
+                        safeMoves.push({ row: rank, col: 2 }); // Queenside destination
+                    }
+                }
+
                 setSelectedSquare({ row, col });
                 setLegalMoves(safeMoves);
                 setMessage(`Selected ${PIECE_SYMBOLS[piece]}. Click a highlighted square to move.`);
@@ -396,6 +540,9 @@ const ChessBoard = () => {
             return;
         }
 
+        // Save state for undo
+        const stateWithUndo = saveStateForUndo(gameState);
+
         const result = executeCombination(
             gameState.board,
             row1, col1,
@@ -434,7 +581,7 @@ const ChessBoard = () => {
             placement: result.placementSquare,
             turn: gameState.currentTurn
         };
-        const newMoveHistory = addMoveToHistory(gameState.moveHistory, combineMove);
+        const newMoveHistory = addMoveToHistory(stateWithUndo.moveHistory, combineMove);
 
         // Check if opponent is in check
         const opponentInCheck = isInCheck(result.board, newTurn);
@@ -450,14 +597,192 @@ const ChessBoard = () => {
         exitCombineMode(true);
 
         setGameState({
+            ...stateWithUndo,
             board: result.board,
             currentTurn: newTurn,
-            moveHistory: newMoveHistory,
-            capturedPieces: gameState.capturedPieces
+            moveHistory: newMoveHistory
         });
 
         // Set success message AFTER exiting combine mode
         setMessage(statusMessage);
+    };
+
+    // Execute promotion
+    const executePromotion = (promotionPiece) => {
+        const { fromRow, fromCol, toRow, toCol, capturedPiece } = promotionDialog;
+
+        // Create new board with promotion
+        const newBoard = copyBoard(gameState.board);
+        newBoard[toRow][toCol] = promotionPiece;
+        newBoard[fromRow][fromCol] = '';
+
+        const newTurn = switchTurn(gameState.currentTurn);
+
+        // Update captured pieces
+        let newCapturedPieces = gameState.capturedPieces;
+        if (capturedPiece) {
+            newCapturedPieces = addCapturedPiece(gameState.capturedPieces, capturedPiece);
+        }
+
+        // Add to move history
+        const move = {
+            type: 'promotion',
+            from: { row: fromRow, col: fromCol },
+            to: { row: toRow, col: toCol },
+            promotedTo: promotionPiece,
+            captured: capturedPiece,
+            turn: gameState.currentTurn
+        };
+        const newMoveHistory = addMoveToHistory(gameState.moveHistory, move);
+
+        // Check if opponent is in check
+        const opponentInCheck = isInCheck(newBoard, newTurn);
+        let statusMessage = `Pawn promoted to ${PIECE_SYMBOLS[promotionPiece]}! ${capitalizeColor(newTurn)} to move`;
+        if (opponentInCheck) {
+            statusMessage += ' - CHECK!';
+        }
+
+        setGameState({
+            ...gameState,
+            board: newBoard,
+            currentTurn: newTurn,
+            moveHistory: newMoveHistory,
+            capturedPieces: newCapturedPieces
+        });
+
+        setPromotionDialog({
+            isOpen: false,
+            fromRow: null,
+            fromCol: null,
+            toRow: null,
+            toCol: null,
+            capturedPiece: null
+        });
+
+        setMessage(statusMessage);
+    };
+
+    // Check if castling is valid
+    const canCastle = (kingSide) => {
+        const rank = gameState.currentTurn === COLORS.WHITE ? 7 : 0;
+        const king = gameState.currentTurn === COLORS.WHITE ? 'K' : 'k';
+        const rook = gameState.currentTurn === COLORS.WHITE ? 'R' : 'r';
+
+        // Check castling rights
+        const rights = gameState.castlingRights?.[gameState.currentTurn];
+        if (!rights || (kingSide && !rights.kingSide) || (!kingSide && !rights.queenSide)) {
+            return false;
+        }
+
+        // Check if king is in correct position
+        if (gameState.board[rank][4] !== king) {
+            return false;
+        }
+
+        // Check if rook is in correct position
+        const rookCol = kingSide ? 7 : 0;
+        if (gameState.board[rank][rookCol] !== rook) {
+            return false;
+        }
+
+        // Check if squares between king and rook are empty
+        const startCol = kingSide ? 5 : 1;
+        const endCol = kingSide ? 6 : 3;
+        for (let col = startCol; col <= endCol; col++) {
+            if (gameState.board[rank][col]) {
+                return false;
+            }
+        }
+
+        // Check if king is in check
+        if (isInCheck(gameState.board, gameState.currentTurn)) {
+            return false;
+        }
+
+        // Check if king passes through check
+        const kingDestCol = kingSide ? 6 : 2;
+        const passCol = kingSide ? 5 : 3;
+
+        // Check intermediate square
+        const testBoard1 = gameState.board.map(r => [...r]);
+        testBoard1[rank][4] = '';
+        testBoard1[rank][passCol] = king;
+        if (isInCheck(testBoard1, gameState.currentTurn)) {
+            return false;
+        }
+
+        // Check destination square
+        const testBoard2 = gameState.board.map(r => [...r]);
+        testBoard2[rank][4] = '';
+        testBoard2[rank][kingDestCol] = king;
+        if (isInCheck(testBoard2, gameState.currentTurn)) {
+            return false;
+        }
+
+        return true;
+    };
+
+    // Execute castling move
+    const executeCastle = (kingSide) => {
+        // Save state for undo
+        const stateWithUndo = saveStateForUndo(gameState);
+
+        const rank = gameState.currentTurn === COLORS.WHITE ? 7 : 0;
+        const king = gameState.currentTurn === COLORS.WHITE ? 'K' : 'k';
+        const rook = gameState.currentTurn === COLORS.WHITE ? 'R' : 'r';
+
+        // Create new board
+        const newBoard = copyBoard(gameState.board);
+
+        // Move king and rook
+        if (kingSide) {
+            newBoard[rank][4] = ''; // Remove king
+            newBoard[rank][7] = ''; // Remove rook
+            newBoard[rank][6] = king; // Place king
+            newBoard[rank][5] = rook; // Place rook
+        } else {
+            newBoard[rank][4] = ''; // Remove king
+            newBoard[rank][0] = ''; // Remove rook
+            newBoard[rank][2] = king; // Place king
+            newBoard[rank][3] = rook; // Place rook
+        }
+
+        const newTurn = switchTurn(gameState.currentTurn);
+
+        // Update castling rights - remove all rights for this player
+        const newCastlingRights = {
+            ...stateWithUndo.castlingRights,
+            [gameState.currentTurn]: {
+                kingSide: false,
+                queenSide: false
+            }
+        };
+
+        // Add to move history
+        const move = {
+            type: 'castle',
+            side: kingSide ? 'kingside' : 'queenside',
+            turn: gameState.currentTurn
+        };
+        const newMoveHistory = addMoveToHistory(stateWithUndo.moveHistory, move);
+
+        // Check if opponent is in check
+        const opponentInCheck = isInCheck(newBoard, newTurn);
+        let statusMessage = `${capitalizeColor(gameState.currentTurn)} castles ${kingSide ? 'kingside' : 'queenside'}! ${announceTurn(newTurn)}`;
+        if (opponentInCheck) {
+            statusMessage += ' - CHECK!';
+        }
+
+        setGameState({
+            ...stateWithUndo,
+            board: newBoard,
+            currentTurn: newTurn,
+            moveHistory: newMoveHistory,
+            castlingRights: newCastlingRights
+        });
+        setMessage(statusMessage);
+        setSelectedSquare(null);
+        setLegalMoves([]);
     };
 
     // Handle de-combine mode clicks with improved flow
@@ -900,6 +1225,47 @@ const ChessBoard = () => {
 
                 {/* Controls */}
                 <div className="mt-8 flex gap-4 flex-wrap justify-center">
+                    {/* Undo/Redo buttons */}
+                    <button
+                        onClick={() => {
+                            const newState = undoMove(gameState);
+                            if (newState !== gameState) {
+                                setGameState(newState);
+                                setSelectedSquare(null);
+                                setLegalMoves([]);
+                                setMessage(`Undo - ${capitalizeColor(newState.currentTurn)} to move`);
+                            }
+                        }}
+                        disabled={!canUndo(gameState)}
+                        aria-label="Undo last move"
+                        title="Undo last move"
+                        className="px-6 py-4 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-bold rounded-xl 
+              shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-orange-400
+              disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:opacity-50"
+                    >
+                        <span className="text-xl">↶ Undo</span>
+                    </button>
+
+                    <button
+                        onClick={() => {
+                            const newState = redoMove(gameState);
+                            if (newState !== gameState) {
+                                setGameState(newState);
+                                setSelectedSquare(null);
+                                setLegalMoves([]);
+                                setMessage(`Redo - ${capitalizeColor(newState.currentTurn)} to move`);
+                            }
+                        }}
+                        disabled={!canRedo(gameState)}
+                        aria-label="Redo last undone move"
+                        title="Redo last undone move"
+                        className="px-6 py-4 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-bold rounded-xl 
+              shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-orange-400
+              disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:opacity-50"
+                    >
+                        <span className="text-xl">↷ Redo</span>
+                    </button>
+
                     <button
                         onClick={combineMode ? exitCombineMode : enterCombineMode}
                         disabled={!combineMode && memoizedEligiblePairs.length === 0}
@@ -982,6 +1348,54 @@ const ChessBoard = () => {
                                 aria-label="Cancel and reselect"
                             >
                                 ✗ Reselect
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* Promotion Dialog */}
+                {promotionDialog.isOpen && (
+                    <div
+                        className="mt-6 px-8 py-6 bg-gradient-to-br from-purple-700 via-purple-800 to-indigo-900 text-white rounded-2xl shadow-2xl border-2 border-purple-400 max-w-lg mx-auto backdrop-blur-sm animate-fade-in"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="promotion-dialog-title"
+                    >
+                        <h3 id="promotion-dialog-title" className="text-center mb-4 text-xl font-bold">
+                            Promote Your Pawn
+                        </h3>
+                        <p className="text-center mb-6 text-purple-200">
+                            Choose which piece to promote to:
+                        </p>
+                        <div className="flex gap-4 justify-center flex-wrap">
+                            <button
+                                onClick={() => executePromotion(gameState.currentTurn === 'white' ? 'Q' : 'q')}
+                                autoFocus
+                                className="px-6 py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white font-bold rounded-xl shadow-xl transition-all transform hover:scale-110 active:scale-95 focus:ring-4 focus:ring-yellow-400 text-4xl"
+                                aria-label="Promote to Queen"
+                            >
+                                {gameState.currentTurn === 'white' ? '♕' : '♛'}
+                            </button>
+                            <button
+                                onClick={() => executePromotion(gameState.currentTurn === 'white' ? 'R' : 'r')}
+                                className="px-6 py-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold rounded-xl shadow-xl transition-all transform hover:scale-110 active:scale-95 focus:ring-4 focus:ring-blue-400 text-4xl"
+                                aria-label="Promote to Rook"
+                            >
+                                {gameState.currentTurn === 'white' ? '♖' : '♜'}
+                            </button>
+                            <button
+                                onClick={() => executePromotion(gameState.currentTurn === 'white' ? 'B' : 'b')}
+                                className="px-6 py-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold rounded-xl shadow-xl transition-all transform hover:scale-110 active:scale-95 focus:ring-4 focus:ring-green-400 text-4xl"
+                                aria-label="Promote to Bishop"
+                            >
+                                {gameState.currentTurn === 'white' ? '♗' : '♝'}
+                            </button>
+                            <button
+                                onClick={() => executePromotion(gameState.currentTurn === 'white' ? 'N' : 'n')}
+                                className="px-6 py-4 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold rounded-xl shadow-xl transition-all transform hover:scale-110 active:scale-95 focus:ring-4 focus:ring-red-400 text-4xl"
+                                aria-label="Promote to Knight"
+                            >
+                                {gameState.currentTurn === 'white' ? '♘' : '♞'}
                             </button>
                         </div>
                     </div>

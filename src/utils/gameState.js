@@ -27,7 +27,17 @@ export const createInitialGameState = () => {
         capturedPieces: {
             white: [],
             black: []
-        }
+        },
+        // Undo/Redo support
+        undoStack: [],
+        redoStack: [],
+        // Castling rights
+        castlingRights: {
+            white: { kingSide: true, queenSide: true },
+            black: { kingSide: true, queenSide: true }
+        },
+        // En passant target
+        enPassantTarget: null
     };
 };
 
@@ -99,4 +109,84 @@ export const executeCombination = (board, row1, col1, row2, col2, anchorRow, anc
             ? { row: row2, col: col2 }
             : { row: row1, col: col1 }
     };
+};
+
+// Undo/Redo functions
+export const saveStateForUndo = (gameState) => {
+    const snapshot = {
+        board: copyBoard(gameState.board),
+        currentTurn: gameState.currentTurn,
+        capturedPieces: JSON.parse(JSON.stringify(gameState.capturedPieces)),
+        castlingRights: JSON.parse(JSON.stringify(gameState.castlingRights)),
+        enPassantTarget: gameState.enPassantTarget ? { ...gameState.enPassantTarget } : null
+    };
+    return {
+        ...gameState,
+        undoStack: [...gameState.undoStack, snapshot],
+        redoStack: [] // Clear redo stack on new action
+    };
+};
+
+export const undoMove = (gameState) => {
+    if (gameState.undoStack.length === 0) {
+        return gameState; // Nothing to undo
+    }
+
+    const undoStack = [...gameState.undoStack];
+    const previousState = undoStack.pop();
+
+    const currentSnapshot = {
+        board: copyBoard(gameState.board),
+        currentTurn: gameState.currentTurn,
+        capturedPieces: JSON.parse(JSON.stringify(gameState.capturedPieces)),
+        castlingRights: JSON.parse(JSON.stringify(gameState.castlingRights)),
+        enPassantTarget: gameState.enPassantTarget ? { ...gameState.enPassantTarget } : null
+    };
+
+    return {
+        ...gameState,
+        board: previousState.board,
+        currentTurn: previousState.currentTurn,
+        capturedPieces: previousState.capturedPieces,
+        castlingRights: previousState.castlingRights,
+        enPassantTarget: previousState.enPassantTarget,
+        undoStack: undoStack,
+        redoStack: [...gameState.redoStack, currentSnapshot]
+    };
+};
+
+export const redoMove = (gameState) => {
+    if (gameState.redoStack.length === 0) {
+        return gameState; // Nothing to redo
+    }
+
+    const redoStack = [...gameState.redoStack];
+    const nextState = redoStack.pop();
+
+    const currentSnapshot = {
+        board: copyBoard(gameState.board),
+        currentTurn: gameState.currentTurn,
+        capturedPieces: JSON.parse(JSON.stringify(gameState.capturedPieces)),
+        castlingRights: JSON.parse(JSON.stringify(gameState.castlingRights)),
+        enPassantTarget: gameState.enPassantTarget ? { ...gameState.enPassantTarget } : null
+    };
+
+    return {
+        ...gameState,
+        board: nextState.board,
+        currentTurn: nextState.currentTurn,
+        capturedPieces: nextState.capturedPieces,
+        castlingRights: nextState.castlingRights,
+        enPassantTarget: nextState.enPassantTarget,
+        undoStack: [...gameState.undoStack, currentSnapshot],
+        redoStack: redoStack
+    };
+};
+
+export const canUndo = (gameState) => {
+    return gameState.undoStack && gameState.undoStack.length > 0;
+};
+
+export const canRedo = (gameState) => {
+    return gameState.redoStack && gameState.redoStack.length > 0;
 };

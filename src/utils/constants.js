@@ -100,6 +100,11 @@ export const isSameColor = (piece1, piece2) => {
     return getPieceColor(piece1) === getPieceColor(piece2);
 };
 
+// Deep copy a board
+export const copyBoard = (board) => {
+    return board.map(row => [...row]);
+};
+
 // Check if a piece is a hybrid
 export const isHybridPiece = (piece) => {
     if (!piece) return false;
