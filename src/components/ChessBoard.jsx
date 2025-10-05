@@ -15,6 +15,16 @@ import {
     getEligiblePartners,
     validateCombination
 } from '../utils/combinationRules.js';
+import {
+    findPlayerHybrids,
+    findSpawnSquares,
+    validateDeCombination,
+    executeDeCombination,
+    getHybridComponents,
+    DE_COMBINE_ERRORS,
+    getSuccessMessage,
+    computeLegalAssignments
+} from '../utils/deCombinationRules.js';
 
 // Message helper functions (Issue #4, #24)
 const capitalizeColor = (color) => {
@@ -45,9 +55,27 @@ const ChessBoard = () => {
     const [combineAnchor, setCombineAnchor] = useState(null);
     const [eligiblePartners, setEligiblePartners] = useState([]);
 
+    // De-Combine mode state (structured for improved flow control)
+    const [deCombine, setDeCombine] = useState({
+        mode: false,                    // Is de-combine mode active?
+        activeHybrid: null,            // Selected hybrid {row, col, piece}
+        eligibleSquares: [],           // Valid adjacent spawn squares
+        selectedSquare: null,          // Chosen spawn square
+        assignment: null,              // Resolved assignment from two-assignment check
+        isConfirmOpen: false           // Confirmation dialog state
+    });
+
+    // Legacy state for backward compatibility (will migrate gradually)
+    const [eligibleHybrids, setEligibleHybrids] = useState([]);
+
     // Memoize eligible pairs calculation (Issue #9)
     const memoizedEligiblePairs = useMemo(() => {
         return findEligiblePairs(gameState.board, gameState.currentTurn);
+    }, [gameState.board, gameState.currentTurn]);
+
+    // Memoize eligible hybrids for de-combine
+    const memoizedEligibleHybrids = useMemo(() => {
+        return findPlayerHybrids(gameState.board, gameState.currentTurn);
     }, [gameState.board, gameState.currentTurn]);
 
     // Exit combine mode - defined early so useEffect can reference it
@@ -57,6 +85,22 @@ const ChessBoard = () => {
         setEligiblePairs([]);
         setCombineAnchor(null);
         setEligiblePartners([]);
+        if (!preserveMessage) {
+            setMessage(announceTurn(gameState.currentTurn));
+        }
+    }, [gameState.currentTurn]);
+
+    // Exit de-combine mode
+    const exitDeCombineMode = useCallback((preserveMessage = false) => {
+        setDeCombine({
+            mode: false,
+            activeHybrid: null,
+            eligibleSquares: [],
+            selectedSquare: null,
+            assignment: null,
+            isConfirmOpen: false
+        });
+        setEligibleHybrids([]);
         if (!preserveMessage) {
             setMessage(announceTurn(gameState.currentTurn));
         }
@@ -79,8 +123,28 @@ const ChessBoard = () => {
         }
     }, [gameState.board, gameState.currentTurn, combineMode, exitCombineMode, memoizedEligiblePairs]);
 
+    // Update eligible hybrids when board or turn changes
+    useEffect(() => {
+        if (deCombine.mode) {
+            const hybrids = memoizedEligibleHybrids;
+            setEligibleHybrids(hybrids);
+
+            if (hybrids.length === 0) {
+                setMessage(announceError('No hybrid pieces available to De-Combine. Exiting.'));
+                setTimeout(() => {
+                    exitDeCombineMode(true);
+                }, 100);
+            }
+        }
+    }, [gameState.board, gameState.currentTurn, deCombine.mode, exitDeCombineMode, memoizedEligibleHybrids]);
+
     // Enter combine mode
     const enterCombineMode = () => {
+        // Exit de-combine mode if active
+        if (deCombine.mode) {
+            exitDeCombineMode();
+        }
+
         const pairs = memoizedEligiblePairs;
 
         if (pairs.length === 0) {
@@ -98,20 +162,83 @@ const ChessBoard = () => {
         setMessage('Combine Mode: Click a piece to start combination');
     };
 
-    // Handle keyboard events
+    // Enter de-combine mode
+    const enterDeCombineMode = () => {
+        // Exit combine mode if active
+        if (combineMode) {
+            exitCombineMode();
+        }
+
+        const hybrids = memoizedEligibleHybrids;
+
+        if (hybrids.length === 0) {
+            setMessage(announceError('No hybrid pieces available to De-Combine.'));
+            return;
+        }
+
+        setDeCombine({
+            mode: true,
+            activeHybrid: null,
+            eligibleSquares: [],
+            selectedSquare: null,
+            assignment: null,
+            isConfirmOpen: false
+        });
+        setEligibleHybrids(hybrids);
+        setSelectedSquare(null);
+        setLegalMoves([]);
+        setMessage('De-Combine Mode: Click a hybrid to split it into components.');
+    };
+
+    // Handle keyboard events with improved ESC hierarchy
     useEffect(() => {
         const handleKeyPress = (e) => {
-            if (e.key === 'Escape' && combineMode) {
-                exitCombineMode();
+            if (e.key === 'Escape') {
+                if (combineMode) {
+                    exitCombineMode();
+                } else if (deCombine.mode) {
+                    // ESC hierarchy for de-combine mode:
+                    // 1. If confirm open → close confirm but keep hybrid selected
+                    // 2. If hybrid selected → clear selection, stay in de-combine mode  
+                    // 3. If nothing selected → exit de-combine mode
+                    if (deCombine.isConfirmOpen) {
+                        setDeCombine(prev => ({
+                            ...prev,
+                            isConfirmOpen: false,
+                            selectedSquare: null
+                        }));
+                        setMessage('Confirmation cancelled. Select a spawn square or choose another hybrid.');
+                    } else if (deCombine.activeHybrid) {
+                        setDeCombine(prev => ({
+                            ...prev,
+                            activeHybrid: null,
+                            eligibleSquares: [],
+                            selectedSquare: null,
+                            assignment: null
+                        }));
+                        setMessage('Hybrid deselected. Click a hybrid to start.');
+                    } else {
+                        exitDeCombineMode();
+                    }
+                }
             }
         };
 
         window.addEventListener('keydown', handleKeyPress);
         return () => window.removeEventListener('keydown', handleKeyPress);
-    }, [combineMode, exitCombineMode]);
+    }, [combineMode, deCombine, exitCombineMode, exitDeCombineMode]);
 
     // Handle square click
     const handleSquareClick = (row, col) => {
+        // Turn safety: block all actions if not player's turn (for future multiplayer)
+        // Currently single-player, but architecture ready for networking
+
+        // Handle de-combine mode clicks
+        if (deCombine.mode) {
+            handleDeCombineClick(row, col);
+            return;
+        }
+
         // Handle combine mode clicks
         if (combineMode) {
             handleCombineClick(row, col);
@@ -333,6 +460,173 @@ const ChessBoard = () => {
         setMessage(statusMessage);
     };
 
+    // Handle de-combine mode clicks with improved flow
+    const handleDeCombineClick = (row, col) => {
+        const piece = gameState.board[row][col];
+
+        // Phase 1: Select hybrid
+        if (!deCombine.activeHybrid) {
+            // Check if clicking on an eligible hybrid
+            const isEligible = eligibleHybrids.some(h => h.row === row && h.col === col);
+
+            if (!isEligible) {
+                setMessage(announceError(DE_COMBINE_ERRORS.NOT_HYBRID));
+                return;
+            }
+
+            // Recompute eligible squares from latest board state
+            const squares = findSpawnSquares(gameState.board, row, col);
+
+            if (squares.length === 0) {
+                setMessage(announceError(DE_COMBINE_ERRORS.NO_ADJACENT_SQUARES));
+                return;
+            }
+
+            // Select hybrid and show eligible spawn squares
+            setDeCombine({
+                ...deCombine,
+                activeHybrid: { row, col, piece },
+                eligibleSquares: squares,
+                selectedSquare: null,
+                assignment: null,
+                isConfirmOpen: false
+            });
+
+            const components = getHybridComponents(piece);
+            const compNames = components ? `${PIECE_SYMBOLS[components[0]]} + ${PIECE_SYMBOLS[components[1]]}` : 'components';
+            setMessage(`Hybrid selected. Click an adjacent square to place ${compNames}.`);
+            return;
+        }
+
+        // Phase 2: Select spawn square
+        // Recompute and verify eligibility
+        const recomputedSquares = findSpawnSquares(gameState.board, deCombine.activeHybrid.row, deCombine.activeHybrid.col);
+        const isEligibleSquare = recomputedSquares.some(sq => sq.row === row && sq.col === col);
+
+        if (!isEligibleSquare) {
+            setMessage(announceError(DE_COMBINE_ERRORS.SQUARE_NOT_ADJACENT));
+            return;
+        }
+
+        // Defensive re-check: square must still be empty
+        if (gameState.board[row][col]) {
+            setMessage(announceError(DE_COMBINE_ERRORS.SQUARE_OCCUPIED));
+            // Recompute eligible squares
+            setDeCombine(prev => ({
+                ...prev,
+                eligibleSquares: recomputedSquares,
+                selectedSquare: null
+            }));
+            return;
+        }
+
+        // Run two-assignment legality check
+        const assignmentResult = computeLegalAssignments(
+            gameState.board,
+            deCombine.activeHybrid.row,
+            deCombine.activeHybrid.col,
+            { row, col },
+            gameState.currentTurn
+        );
+
+        if (assignmentResult.legal.length === 0) {
+            setMessage(announceError(assignmentResult.reason));
+            return;
+        }
+
+        // Store selected square and assignment, open confirm dialog
+        setDeCombine(prev => ({
+            ...prev,
+            selectedSquare: { row, col },
+            assignment: assignmentResult.chosen,
+            isConfirmOpen: true
+        }));
+
+        const toAlgebraic = (r, c) => String.fromCharCode(97 + c) + (8 - r);
+        setMessage(`Ready to de-combine: ${assignmentResult.chosen.description} at ${toAlgebraic(row, col)}. Press Confirm or ESC to cancel.`);
+    };
+
+    // Execute de-combination with final validation
+    const executeDeCombine = () => {
+        if (!deCombine.activeHybrid || !deCombine.selectedSquare || !deCombine.assignment) {
+            setMessage(announceError('Invalid de-combination state.'));
+            return;
+        }
+
+        // Final legality pass (never assume earlier checks still hold)
+        const validation = validateDeCombination(
+            gameState.board,
+            deCombine.activeHybrid.row,
+            deCombine.activeHybrid.col,
+            deCombine.selectedSquare,
+            gameState.currentTurn
+        );
+
+        if (!validation.valid) {
+            setMessage(announceError(validation.reason));
+            setDeCombine(prev => ({
+                ...prev,
+                isConfirmOpen: false,
+                selectedSquare: null,
+                assignment: null
+            }));
+            return;
+        }
+
+        // Execute with determined assignment
+        const result = executeDeCombination(
+            gameState.board,
+            deCombine.activeHybrid.row,
+            deCombine.activeHybrid.col,
+            deCombine.selectedSquare,
+            gameState.currentTurn
+        );
+
+        if (!result) {
+            setMessage(announceError('De-combination failed: could not execute.'));
+            exitDeCombineMode(true);
+            return;
+        }
+
+        // Update game state with new board
+        const newGameState = {
+            ...gameState,
+            board: result.board,
+            currentTurn: gameState.currentTurn === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE,
+        };
+
+        // Add to history (for replay/analytics)
+        const historyEntry = {
+            type: 'de-combine',
+            hybrid: deCombine.activeHybrid.piece,
+            hybridSquare: deCombine.activeHybrid,
+            selectedSquare: deCombine.selectedSquare,
+            assignment: result.assignment,
+            stayingComponent: result.stayingComponent,
+            spawningComponent: result.spawningComponent,
+            assignmentType: result.assignmentType,
+            turnIndex: gameState.moveHistory.length,
+            timestamp: Date.now()
+        };
+
+        newGameState.moveHistory = [...gameState.moveHistory, historyEntry];
+
+        setGameState(newGameState);
+
+        // Success message
+        const successMsg = getSuccessMessage(
+            deCombine.activeHybrid.piece,
+            result.stayingComponent,
+            result.anchorSquare,
+            result.spawningComponent,
+            result.spawnSquare
+        );
+        setMessage(announceSuccess(successMsg));
+
+        // Exit de-combine mode
+        exitDeCombineMode(true);
+    };
+
     // Check if a square is selected
     const isSelected = (row, col) => {
         return selectedSquare && selectedSquare.row === row && selectedSquare.col === col;
@@ -363,6 +657,28 @@ const ChessBoard = () => {
         return combineAnchor && combineAnchor.row === row && combineAnchor.col === col;
     };
 
+    // Check if a hybrid is eligible for de-combining
+    const isEligibleForDeCombine = (row, col) => {
+        if (!deCombine.mode) return false;
+        return eligibleHybrids.some(h => h.row === row && h.col === col);
+    };
+
+    // Check if square is the selected hybrid
+    const isSelectedHybrid = (row, col) => {
+        return deCombine.activeHybrid && deCombine.activeHybrid.row === row && deCombine.activeHybrid.col === col;
+    };
+
+    // Check if square is a valid spawn square
+    const isSpawnSquare = (row, col) => {
+        if (!deCombine.activeHybrid) return false;
+        return deCombine.eligibleSquares.some(sq => sq.row === row && sq.col === col);
+    };
+
+    // Check if square is the selected spawn square
+    const isSelectedSpawnSquare = (row, col) => {
+        return deCombine.selectedSquare && deCombine.selectedSquare.row === row && deCombine.selectedSquare.col === col;
+    };
+
     // Reset game
     const resetGame = () => {
         setGameState(createInitialGameState());
@@ -372,52 +688,83 @@ const ChessBoard = () => {
         setEligiblePairs([]);
         setCombineAnchor(null);
         setEligiblePartners([]);
+        setDeCombine({
+            mode: false,
+            activeHybrid: null,
+            eligibleSquares: [],
+            selectedSquare: null,
+            assignment: null,
+            isConfirmOpen: false
+        });
+        setEligibleHybrids([]);
         setMessage('White to move');
     };
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-800 to-gray-900 p-4">
-            <div className="flex flex-col items-center max-w-6xl w-full">
-                <h1 className="text-4xl font-bold text-white mb-4">Interactive Chess</h1>
+        <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 relative overflow-hidden">
+            {/* Animated background elements */}
+            <div className="absolute inset-0 opacity-20">
+                <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500 rounded-full blur-3xl animate-pulse"></div>
+                <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }}></div>
+            </div>
+
+            <div className="flex flex-col items-center max-w-6xl w-full relative z-10">
+                <h1 className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 mb-6 drop-shadow-2xl tracking-tight animate-fade-in">
+                    Interactive Chess
+                </h1>
 
                 {/* Status message */}
-                <div className="mb-4 text-xl font-semibold text-amber-400 min-h-8">
-                    {message}
+                <div className="mb-6 px-6 py-3 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 backdrop-blur-sm rounded-xl border border-amber-400/30 shadow-xl min-h-12 flex items-center">
+                    <p className="text-xl font-semibold text-amber-200 text-center w-full drop-shadow-lg">
+                        {message}
+                    </p>
                 </div>
 
                 {/* Combine Mode Indicator */}
                 {combineMode && (
-                    <div className="mb-2 px-4 py-2 bg-purple-600 text-white rounded-lg font-semibold">
-                        🔮 COMBINE MODE ACTIVE - Press ESC to cancel
+                    <div className="mb-4 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl font-semibold shadow-2xl border-2 border-purple-400 animate-pulse-subtle">
+                        <span className="text-2xl mr-2">🔮</span>
+                        COMBINE MODE ACTIVE - Press ESC to cancel
+                    </div>
+                )}
+
+                {/* De-Combine Mode Indicator */}
+                {deCombine.mode && (
+                    <div className="mb-4 px-6 py-3 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-xl font-semibold shadow-2xl border-2 border-teal-400 animate-pulse-subtle">
+                        <span className="text-2xl mr-2">⚡</span>
+                        DE-COMBINE MODE ACTIVE - Press ESC to cancel
                     </div>
                 )}
 
                 <div className="flex gap-8 flex-wrap justify-center">
                     {/* Issue #19: Captured pieces - pieces captured BY White (black pieces) */}
-                    <div className="flex flex-col items-center">
-                        <h3 className="text-white text-sm mb-2">Captured by White</h3>
-                        <div className="min-h-12 flex flex-wrap gap-1 items-start justify-center w-32 bg-gray-700 p-2 rounded">
+                    <div className="flex flex-col items-center transform transition-transform hover:scale-105">
+                        <h3 className="text-amber-300 text-base font-bold mb-3 tracking-wide drop-shadow-lg">Captured by White</h3>
+                        <div className="min-h-16 flex flex-wrap gap-2 items-start justify-center w-36 bg-gradient-to-br from-slate-800 to-slate-900 p-3 rounded-xl border-2 border-amber-600/40 shadow-2xl backdrop-blur-sm">
                             {gameState.capturedPieces.black.map((piece, idx) => (
-                                <span key={idx} className="text-2xl text-gray-900" style={{ textShadow: '1px 1px 2px rgba(255,255,255,0.8)' }}>
+                                <span key={idx} className="text-3xl text-gray-900 transition-transform hover:scale-125" style={{ textShadow: '2px 2px 4px rgba(255,255,255,0.9)' }}>
                                     {PIECE_SYMBOLS[piece]}
                                 </span>
                             ))}
+                            {gameState.capturedPieces.black.length === 0 && (
+                                <span className="text-gray-600 text-sm italic">No captures yet</span>
+                            )}
                         </div>
                     </div>
 
                     {/* Chess board */}
-                    <div className="flex items-center">
+                    <div className="flex items-center transform transition-all hover:scale-[1.02]">
                         {/* Issue #20: Add rank labels (1-8) */}
-                        <div className="flex flex-col-reverse gap-0 mr-2">
+                        <div className="flex flex-col-reverse gap-0 mr-3">
                             {[1, 2, 3, 4, 5, 6, 7, 8].map((rank) => (
-                                <div key={rank} className="h-16 flex items-center text-gray-400 text-sm">
+                                <div key={rank} className="h-16 flex items-center text-amber-400 text-base font-bold drop-shadow-lg">
                                     {rank}
                                 </div>
                             ))}
                         </div>
 
                         <div className="flex flex-col items-center">
-                            <div className="grid grid-cols-8 gap-0 border-8 border-gray-700 shadow-2xl">
+                            <div className="grid grid-cols-8 gap-0 border-8 border-gradient-to-br from-amber-700 via-yellow-800 to-amber-900 shadow-2xl rounded-lg overflow-hidden backdrop-blur-sm" style={{ borderImage: 'linear-gradient(135deg, #d97706, #b45309, #92400e) 1' }}>
                                 {gameState.board.map((row, rowIndex) => (
                                     row.map((piece, colIndex) => {
                                         const isLightSquare = (rowIndex + colIndex) % 2 === 0;
@@ -427,31 +774,60 @@ const ChessBoard = () => {
                                         const partner = isEligiblePartner(rowIndex, colIndex);
                                         const anchor = isCombineAnchor(rowIndex, colIndex);
 
+                                        // De-combine mode checks
+                                        const eligibleHybrid = isEligibleForDeCombine(rowIndex, colIndex);
+                                        const hybridSelected = isSelectedHybrid(rowIndex, colIndex);
+                                        const spawnSquare = isSpawnSquare(rowIndex, colIndex);
+                                        const spawnSelected = isSelectedSpawnSquare(rowIndex, colIndex);
+
                                         // Issue #7: Check if this is a capture move
                                         const isCapture = isLegalMove && gameState.board[rowIndex][colIndex];
 
-                                        let squareColor = isLightSquare ? 'bg-amber-100' : 'bg-amber-800';
+                                        let squareColor = isLightSquare ? 'bg-gradient-to-br from-amber-50 to-amber-100' : 'bg-gradient-to-br from-amber-700 to-amber-900';
                                         let ringClass = '';
+                                        let opacity = 'opacity-100';
+                                        let extraEffects = '';
 
-                                        // Combine mode highlighting
-                                        if (combineMode) {
+                                        // De-Combine mode highlighting (Spec 6.1 enhanced)
+                                        if (deCombine.mode) {
+                                            if (hybridSelected) {
+                                                // Active hybrid piece - purple glow
+                                                squareColor = 'bg-gradient-to-br from-teal-300 to-teal-500';
+                                                ringClass = 'ring-4 ring-teal-400 ring-inset animate-pulse shadow-lg shadow-teal-500/50';
+                                            } else if (spawnSelected) {
+                                                // Selected spawn square - bright green with stronger glow
+                                                squareColor = 'bg-gradient-to-br from-lime-300 to-lime-500';
+                                                ringClass = 'ring-4 ring-lime-400 ring-inset animate-pulse shadow-lg shadow-lime-500/50';
+                                            } else if (spawnSquare) {
+                                                // Eligible spawn squares - green
+                                                squareColor = isLightSquare ? 'bg-gradient-to-br from-green-200 to-green-300' : 'bg-gradient-to-br from-green-500 to-green-700';
+                                                ringClass = 'ring-2 ring-green-400 ring-inset shadow-inner';
+                                            } else if (eligibleHybrid) {
+                                                // Other eligible hybrids - teal
+                                                squareColor = isLightSquare ? 'bg-gradient-to-br from-teal-200 to-teal-300' : 'bg-gradient-to-br from-teal-500 to-teal-700';
+                                                ringClass = 'ring-2 ring-teal-300 ring-inset animate-pulse';
+                                            } else {
+                                                opacity = 'opacity-50'; // Dim non-relevant pieces
+                                            }
+                                        } else if (combineMode) {
                                             if (anchor) {
-                                                squareColor = 'bg-purple-400';
-                                                ringClass = 'ring-4 ring-purple-600 ring-inset';
+                                                squareColor = 'bg-gradient-to-br from-purple-300 to-purple-500';
+                                                ringClass = 'ring-4 ring-purple-400 ring-inset shadow-lg shadow-purple-500/50';
                                             } else if (partner) {
-                                                squareColor = isLightSquare ? 'bg-purple-200' : 'bg-purple-500';
-                                                ringClass = 'ring-2 ring-purple-400 ring-inset';
+                                                squareColor = isLightSquare ? 'bg-gradient-to-br from-purple-200 to-purple-300' : 'bg-gradient-to-br from-purple-500 to-purple-700';
+                                                ringClass = 'ring-2 ring-purple-300 ring-inset shadow-inner';
                                             } else if (eligible) {
-                                                squareColor = isLightSquare ? 'bg-blue-200' : 'bg-blue-500';
-                                                ringClass = 'ring-2 ring-blue-400 ring-inset animate-pulse';
+                                                squareColor = isLightSquare ? 'bg-gradient-to-br from-blue-200 to-blue-300' : 'bg-gradient-to-br from-blue-500 to-blue-700';
+                                                ringClass = 'ring-2 ring-blue-300 ring-inset animate-pulse';
                                             }
                                         } else {
                                             // Normal move mode highlighting
                                             if (selected) {
-                                                squareColor = 'bg-yellow-400';
+                                                squareColor = 'bg-gradient-to-br from-yellow-300 to-yellow-500';
+                                                extraEffects = 'shadow-lg shadow-yellow-500/50';
                                             } else if (isLegalMove) {
-                                                squareColor = isLightSquare ? 'bg-green-300' : 'bg-green-600';
-                                                ringClass = 'ring-2 ring-green-400 ring-inset';
+                                                squareColor = isLightSquare ? 'bg-gradient-to-br from-green-200 to-green-300' : 'bg-gradient-to-br from-green-500 to-green-700';
+                                                ringClass = 'ring-2 ring-green-400 ring-inset shadow-inner';
                                             }
                                         }
 
@@ -459,34 +835,35 @@ const ChessBoard = () => {
                                             <div
                                                 key={`${rowIndex}-${colIndex}`}
                                                 onClick={() => handleSquareClick(rowIndex, colIndex)}
-                                                className={`w-16 h-16 flex items-center justify-center ${squareColor} 
-                            hover:opacity-80 transition-all cursor-pointer relative ${ringClass}`}
+                                                className={`w-16 h-16 flex items-center justify-center ${squareColor} ${opacity}
+                            hover:brightness-110 hover:scale-105 transition-all duration-200 cursor-pointer relative ${ringClass} ${extraEffects}`}
                                             >
                                                 {piece && (
-                                                    <div className="relative">
+                                                    <div className="relative transform transition-transform hover:scale-110">
                                                         <span
                                                             className={`text-5xl select-none ${piece === piece.toUpperCase() ? 'text-white' : 'text-gray-900'
                                                                 }`}
                                                             style={{
                                                                 // Issue #8: Improve contrast for black pieces
                                                                 textShadow: piece === piece.toUpperCase()
-                                                                    ? '2px 2px 4px rgba(0,0,0,0.7)'
-                                                                    : '1px 1px 2px rgba(255,255,255,0.8), -1px -1px 2px rgba(255,255,255,0.4)'
+                                                                    ? '3px 3px 6px rgba(0,0,0,0.9), -1px -1px 2px rgba(0,0,0,0.5)'
+                                                                    : '2px 2px 4px rgba(255,255,255,1), -1px -1px 2px rgba(255,255,255,0.6)',
+                                                                filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))'
                                                             }}
                                                         >
                                                             {PIECE_SYMBOLS[piece]}
                                                         </span>
                                                         {isHybridPiece(piece) && (
-                                                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-600 rounded-full border border-white"></div>
+                                                            <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full border-2 border-white shadow-lg animate-pulse"></div>
                                                         )}
                                                     </div>
                                                 )}
                                                 {/* Issue #7: Different indicators for empty moves vs captures */}
                                                 {isLegalMove && !piece && !combineMode && (
-                                                    <div className="w-4 h-4 bg-green-500 rounded-full opacity-60"></div>
+                                                    <div className="w-5 h-5 bg-green-400 rounded-full opacity-70 shadow-lg animate-pulse"></div>
                                                 )}
                                                 {isCapture && !combineMode && (
-                                                    <div className="absolute inset-0 border-4 border-red-500 opacity-50 pointer-events-none"></div>
+                                                    <div className="absolute inset-0 border-4 border-red-500 rounded opacity-60 pointer-events-none animate-pulse shadow-inner"></div>
                                                 )}
                                             </div>
                                         );
@@ -495,9 +872,9 @@ const ChessBoard = () => {
                             </div>
 
                             {/* Coordinate labels */}
-                            <div className="flex mt-2 gap-0">
+                            <div className="flex mt-3 gap-0">
                                 {['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((letter) => (
-                                    <div key={letter} className="w-16 text-center text-gray-400 text-sm">
+                                    <div key={letter} className="w-16 text-center text-amber-400 text-base font-bold drop-shadow-lg">
                                         {letter}
                                     </div>
                                 ))}
@@ -506,60 +883,137 @@ const ChessBoard = () => {
                     </div>
 
                     {/* Issue #19: Captured pieces - pieces captured BY Black (white pieces) */}
-                    <div className="flex flex-col items-center">
-                        <h3 className="text-white text-sm mb-2">Captured by Black</h3>
-                        <div className="min-h-12 flex flex-wrap gap-1 items-start justify-center w-32 bg-gray-700 p-2 rounded">
+                    <div className="flex flex-col items-center transform transition-transform hover:scale-105">
+                        <h3 className="text-amber-300 text-base font-bold mb-3 tracking-wide drop-shadow-lg">Captured by Black</h3>
+                        <div className="min-h-16 flex flex-wrap gap-2 items-start justify-center w-36 bg-gradient-to-br from-slate-800 to-slate-900 p-3 rounded-xl border-2 border-amber-600/40 shadow-2xl backdrop-blur-sm">
                             {gameState.capturedPieces.white.map((piece, idx) => (
-                                <span key={idx} className="text-2xl text-white" style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.7)' }}>
+                                <span key={idx} className="text-3xl text-white transition-transform hover:scale-125" style={{ textShadow: '3px 3px 6px rgba(0,0,0,0.9)' }}>
                                     {PIECE_SYMBOLS[piece]}
                                 </span>
                             ))}
+                            {gameState.capturedPieces.white.length === 0 && (
+                                <span className="text-gray-600 text-sm italic">No captures yet</span>
+                            )}
                         </div>
                     </div>
                 </div>
 
                 {/* Controls */}
-                <div className="mt-8 flex gap-4">
+                <div className="mt-8 flex gap-4 flex-wrap justify-center">
                     <button
                         onClick={combineMode ? exitCombineMode : enterCombineMode}
                         disabled={!combineMode && memoizedEligiblePairs.length === 0}
                         role="button"
                         aria-pressed={combineMode}
                         aria-label={combineMode ? 'Cancel Combine Mode' : 'Enter Combine Mode'}
-                        className={`px-6 py-3 font-semibold rounded-lg shadow-lg transition-colors focus:outline-none focus:ring-4 focus:ring-purple-400 ${combineMode
-                            ? 'bg-red-600 hover:bg-red-700 text-white'
-                            : 'bg-purple-600 hover:bg-purple-700 text-white disabled:bg-gray-500 disabled:cursor-not-allowed'
+                        className={`px-8 py-4 font-bold rounded-xl shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-purple-400 ${combineMode
+                            ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white'
+                            : 'bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed disabled:hover:scale-100'
                             }`}
                     >
-                        {combineMode ? 'Cancel Combine' : '🔮 Combine Pieces'}
+                        <span className="text-xl">{combineMode ? '❌ Cancel Combine' : '🔮 Combine Pieces'}</span>
                     </button>
+
+                    <button
+                        onClick={deCombine.mode ? exitDeCombineMode : enterDeCombineMode}
+                        disabled={!deCombine.mode && memoizedEligibleHybrids.length === 0}
+                        role="button"
+                        aria-pressed={deCombine.mode}
+                        aria-label={deCombine.mode ? 'Cancel De-Combine Mode' : 'Enter De-Combine Mode'}
+                        className={`px-8 py-4 font-bold rounded-xl shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-teal-400 ${deCombine.mode
+                            ? 'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white'
+                            : 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed disabled:hover:scale-100'
+                            }`}
+                    >
+                        <span className="text-xl">{deCombine.mode ? '❌ Cancel De-Combine' : '⚡ De-Combine Pieces'}</span>
+                    </button>
+
                     <button
                         onClick={resetGame}
                         aria-label="Reset Game"
-                        className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg 
-              shadow-lg transition-colors focus:outline-none focus:ring-4 focus:ring-blue-400"
+                        className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl 
+              shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-blue-400"
                     >
-                        Reset Game
+                        <span className="text-xl">🔄 Reset Game</span>
                     </button>
                 </div>
 
+                {/* Confirm De-Combine Dialog (Enhanced with assignment details) */}
+                {deCombine.isConfirmOpen && deCombine.activeHybrid && deCombine.selectedSquare && deCombine.assignment && (
+                    <div
+                        className="mt-6 px-8 py-6 bg-gradient-to-br from-teal-700 via-teal-800 to-cyan-900 text-white rounded-2xl shadow-2xl border-2 border-teal-400 max-w-lg mx-auto backdrop-blur-sm animate-fade-in"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="decom dialog-title"
+                    >
+                        <h3 id="decombine-dialog-title" className="text-center mb-4 text-xl font-bold">
+                            Confirm De-Combination
+                        </h3>
+                        <div className="text-center mb-4 space-y-2">
+                            <p className="text-lg">
+                                Hybrid: <span className="text-3xl">{PIECE_SYMBOLS[deCombine.activeHybrid.piece]}</span>
+                            </p>
+                            <p className="text-md text-teal-200">
+                                → {deCombine.assignment.description}
+                            </p>
+                            <p className="text-sm text-teal-300 italic">
+                                Spawn square: {String.fromCharCode(97 + deCombine.selectedSquare.col)}{8 - deCombine.selectedSquare.row}
+                            </p>
+                        </div>
+                        <div className="flex gap-4 justify-center">
+                            <button
+                                onClick={executeDeCombine}
+                                autoFocus
+                                className="px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold rounded-xl shadow-xl transition-all transform hover:scale-105 active:scale-95 focus:ring-4 focus:ring-green-400"
+                                aria-label="Confirm de-combination"
+                            >
+                                ✓ Confirm
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setDeCombine(prev => ({
+                                        ...prev,
+                                        isConfirmOpen: false,
+                                        selectedSquare: null
+                                    }));
+                                    setMessage('Confirmation cancelled. Select a different spawn square or ESC to cancel.');
+                                }}
+                                className="px-8 py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-bold rounded-xl shadow-xl transition-all transform hover:scale-105 active:scale-95 focus:ring-4 focus:ring-gray-500"
+                                aria-label="Cancel and reselect"
+                            >
+                                ✗ Reselect
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {/* Legend */}
-                <div className="mt-6 text-gray-300 text-sm text-center space-y-1">
-                    {!combineMode ? (
+                <div className="mt-8 text-amber-200 text-base text-center space-y-2 bg-slate-900/50 backdrop-blur-sm px-6 py-4 rounded-xl border border-amber-600/30 shadow-xl">
+                    {deCombine.mode ? (
                         <>
-                            <p><span className="inline-block w-4 h-4 bg-yellow-400 mr-2"></span>Selected piece</p>
-                            <p><span className="inline-block w-4 h-4 bg-green-500 mr-2"></span>Legal moves</p>
-                            <p className="text-xs mt-2 text-gray-400">
+                            <p className="font-semibold"><span className="inline-block w-5 h-5 bg-teal-400 mr-2 rounded animate-pulse shadow-lg"></span>Eligible hybrids</p>
+                            <p className="font-semibold"><span className="inline-block w-5 h-5 bg-teal-500 mr-2 rounded shadow-lg"></span>Selected hybrid</p>
+                            <p className="font-semibold"><span className="inline-block w-5 h-5 bg-green-400 mr-2 rounded shadow-lg"></span>Available spawn squares</p>
+                            <p className="font-semibold"><span className="inline-block w-5 h-5 bg-lime-400 mr-2 rounded shadow-lg"></span>Selected spawn square</p>
+                            <p className="text-sm mt-3 text-amber-300/80 italic">
+                                Click a hybrid, then click an adjacent empty square to place components
+                            </p>
+                        </>
+                    ) : !combineMode ? (
+                        <>
+                            <p className="font-semibold"><span className="inline-block w-5 h-5 bg-yellow-400 mr-2 rounded shadow-lg"></span>Selected piece</p>
+                            <p className="font-semibold"><span className="inline-block w-5 h-5 bg-green-500 mr-2 rounded-full shadow-lg"></span>Legal moves</p>
+                            <p className="text-sm mt-3 text-amber-300/80 italic">
                                 Click a piece to select it, then click a highlighted square to move
                             </p>
                         </>
                     ) : (
                         <>
-                            <p><span className="inline-block w-4 h-4 bg-blue-400 mr-2 animate-pulse"></span>Eligible for combination</p>
-                            <p><span className="inline-block w-4 h-4 bg-purple-400 mr-2"></span>Selected anchor</p>
-                            <p><span className="inline-block w-4 h-4 bg-purple-300 mr-2"></span>Eligible partners</p>
-                            <p><span className="inline-block w-3 h-3 bg-purple-600 rounded-full mr-2"></span>Hybrid piece</p>
-                            <p className="text-xs mt-2 text-gray-400">
+                            <p className="font-semibold"><span className="inline-block w-5 h-5 bg-blue-400 mr-2 rounded animate-pulse shadow-lg"></span>Eligible for combination</p>
+                            <p className="font-semibold"><span className="inline-block w-5 h-5 bg-purple-400 mr-2 rounded shadow-lg"></span>Selected anchor</p>
+                            <p className="font-semibold"><span className="inline-block w-5 h-5 bg-purple-300 mr-2 rounded shadow-lg"></span>Eligible partners</p>
+                            <p className="font-semibold"><span className="inline-block w-4 h-4 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full mr-2 shadow-lg"></span>Hybrid piece</p>
+                            <p className="text-sm mt-3 text-amber-300/80 italic">
                                 Click an eligible piece, then click a partner to combine them
                             </p>
                         </>
