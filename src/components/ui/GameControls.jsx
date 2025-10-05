@@ -21,7 +21,7 @@ const GameControls = ({
 }) => {
   // Disable undo/redo when any special mode is active
   const isSpecialModeActive = combineMode || deCombineMode || promotionMode;
-  
+
   return (
     <div className="mt-8 flex gap-4 flex-wrap justify-center">
       {/* Undo button */}
@@ -29,7 +29,11 @@ const GameControls = ({
         onClick={onUndo}
         disabled={!canUndoMove || isSpecialModeActive}
         aria-label="Undo last move"
-        title={isSpecialModeActive ? "Cannot undo while in special mode" : "Undo last move"}
+        title={
+          isSpecialModeActive
+            ? "Cannot undo while in special mode"
+            : "Undo last move"
+        }
         className="px-6 py-4 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-bold rounded-xl 
                     shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-orange-400
                     disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:opacity-50"
@@ -42,7 +46,11 @@ const GameControls = ({
         onClick={onRedo}
         disabled={!canRedoMove || isSpecialModeActive}
         aria-label="Redo last undone move"
-        title={isSpecialModeActive ? "Cannot redo while in special mode" : "Redo last undone move"}
+        title={
+          isSpecialModeActive
+            ? "Cannot redo while in special mode"
+            : "Redo last undone move"
+        }
         className="px-6 py-4 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-bold rounded-xl 
                     shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-4 focus:ring-orange-400
                     disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:opacity-50"
