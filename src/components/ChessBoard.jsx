@@ -5,7 +5,9 @@ import {
   redoMove,
   canUndo,
   canRedo,
+  isCurrentPlayersPiece,
 } from "../utils/gameState.js";
+import { COLORS, getPieceColor } from "../utils/constants.js";
 import { announceTurn, capitalizeColor } from "./helpers/messageHelpers.js";
 import { useCombineMode } from "./hooks/useCombineMode.js";
 import { useDeCombineMode } from "./hooks/useDeCombineMode.js";
@@ -21,13 +23,56 @@ import PromotionDialog from "./ui/PromotionDialog.jsx";
 import DeCombineConfirmDialog from "./ui/DeCombineConfirmDialog.jsx";
 import GameLegend from "./ui/GameLegend.jsx";
 
-const ChessBoard = () => {
-  const [gameState, setGameState] = useState(createInitialGameState());
+const ChessBoard = ({
+  gameState: externalGameState = null,
+  onGameStateChange = null,
+  gameMode = 'singlePlayer',
+  playerColor = null,
+  isConnected = false
+}) => {
+  // Use external game state if provided, otherwise use internal state
+  const [internalGameState, setInternalGameState] = useState(createInitialGameState());
+  const gameState = externalGameState || internalGameState;
+
+  // Game state updater - calls parent callback if provided
+  const updateGameState = (newGameState) => {
+    console.log('ChessBoard updateGameState called:', {
+      hasCallback: !!onGameStateChange,
+      gameMode,
+      playerColor,
+      newState: newGameState
+    });
+
+    if (onGameStateChange) {
+      onGameStateChange(newGameState);
+    } else {
+      setInternalGameState(newGameState);
+    }
+  };
+
+  console.log('ChessBoard - GameMode:', gameMode, 'PlayerColor:', playerColor, 'GameState:', gameState);
   const [message, setMessage] = useState("White to move");
+
+  // Move validation for multiplayer mode using existing utilities
+  const canMakeMove = (piece, fromSquare = null) => {
+    if (gameMode === 'singlePlayer') {
+      return true; // Allow any move in single player
+    }
+
+    if (!piece) return false;
+
+    // Use existing utility functions
+    const isMyTurn = gameState.currentTurn === playerColor;
+    const isMyPiece = isCurrentPlayersPiece(piece, playerColor);
+
+    console.log(`Move validation - Piece: ${piece}, PlayerColor: ${playerColor}, CurrentTurn: ${gameState.currentTurn}, IsMyTurn: ${isMyTurn}, IsMyPiece: ${isMyPiece}`);
+
+    return isMyTurn && isMyPiece;
+  };
 
   // Promotion hook
   const { promotionDialog, openPromotionDialog, executePromotion } =
-    usePromotion(gameState, setGameState, setMessage);
+    usePromotion(gameState, updateGameState, setMessage);
 
   // Move handler hook
   const {
@@ -37,7 +82,7 @@ const ChessBoard = () => {
     isSelected,
     isLegalMoveSquare,
     clearSelection,
-  } = useMoveHandler(gameState, setGameState, setMessage, openPromotionDialog);
+  } = useMoveHandler(gameState, updateGameState, setMessage, openPromotionDialog);
 
   // Combine mode hook
   const {
@@ -49,7 +94,7 @@ const ChessBoard = () => {
     isEligibleForCombine,
     isEligiblePartner,
     isCombineAnchor,
-  } = useCombineMode(gameState, setGameState, setMessage);
+  } = useCombineMode(gameState, updateGameState, setMessage);
 
   // De-combine mode hook
   const {
@@ -65,7 +110,7 @@ const ChessBoard = () => {
     isSelectedHybrid,
     isSpawnSquare,
     isSelectedSpawnSquare,
-  } = useDeCombineMode(gameState, setGameState, setMessage);
+  } = useDeCombineMode(gameState, updateGameState, setMessage);
 
   // Keyboard handler
   useEffect(() => {
@@ -82,8 +127,17 @@ const ChessBoard = () => {
     return () => window.removeEventListener("keydown", handleKeyPress);
   }, [combineMode, deCombine.mode, exitCombineMode, handleDeCombineEscape]);
 
-  // Route square clicks
+  // Route square clicks with move validation
   const handleSquareClick = (row, col) => {
+    const piece = gameState.board[row][col];
+
+    // For piece selection, check if we can move this piece
+    if (piece && selectedSquare === null && !canMakeMove(piece, [row, col])) {
+      console.log(`Cannot select piece ${piece} - not your piece or not your turn`);
+      setMessage(`It's ${gameState.currentTurn}'s turn. You can only move ${playerColor || 'any'} pieces.`);
+      return;
+    }
+
     if (deCombine.mode) {
       handleDeCombineClick(row, col);
     } else if (combineMode) {
@@ -114,25 +168,44 @@ const ChessBoard = () => {
   };
 
   const handleUndo = () => {
+    // Disable undo/redo in multiplayer mode
+    if (gameMode !== 'singlePlayer') {
+      setMessage("Undo/Redo is disabled in multiplayer mode");
+      return;
+    }
+
     const newState = undoMove(gameState);
     if (newState !== gameState) {
-      setGameState(newState);
+      updateGameState(newState);
       clearSelection();
       setMessage(`Undo - ${capitalizeColor(newState.currentTurn)} to move`);
     }
   };
 
   const handleRedo = () => {
+    // Disable undo/redo in multiplayer mode
+    if (gameMode !== 'singlePlayer') {
+      setMessage("Undo/Redo is disabled in multiplayer mode");
+      return;
+    }
+
     const newState = redoMove(gameState);
     if (newState !== gameState) {
-      setGameState(newState);
+      updateGameState(newState);
       clearSelection();
       setMessage(`Redo - ${capitalizeColor(newState.currentTurn)} to move`);
     }
   };
 
   const resetGame = () => {
-    setGameState(createInitialGameState());
+    // In multiplayer, only allow reset if you're the host or in single player
+    if (gameMode === 'guest') {
+      setMessage("Only the host can reset the game");
+      return;
+    }
+
+    const newState = createInitialGameState();
+    updateGameState(newState);
     clearSelection();
     exitCombineMode();
     exitDeCombineMode();
