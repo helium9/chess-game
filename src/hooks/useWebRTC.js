@@ -5,6 +5,7 @@ import { COLORS } from '../utils/constants.js';
 const useWebRTC = () => {
     const [isConnecting, setIsConnecting] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
+    const [isReconnecting, setIsReconnecting] = useState(false);
     const [connectionId, setConnectionId] = useState('');
     const [connectionState, setConnectionState] = useState('closed');
     const [error, setError] = useState(null);
@@ -28,35 +29,80 @@ const useWebRTC = () => {
 
             if (state === 'connected') {
                 setIsConnecting(false);
+                setIsReconnecting(false);
                 setError(null);
-            } else if (state === 'failed' || state === 'disconnected' || state === 'closed') {
-                // Peer disconnected or connection failed - reset to initial state
+                console.log('Connection established successfully');
+            } else if (state === 'reconnecting') {
+                setIsReconnecting(true);
+                setError('Attempting to reconnect...');
+                console.log('Attempting to reconnect');
+            } else if (state === 'graceful-disconnect') {
+                console.log('Received graceful disconnect notification');
+                setIsConnected(false);
+                setIsConnecting(false);
+                setIsReconnecting(false);
+                setError('Opponent left the game');
+                setGracefulDisconnectReceived(true);
+
+                // Reset to single player after graceful disconnect
+                setTimeout(() => {
+                    setError(null);
+                    setGameMode('singlePlayer');
+                    setPlayerColor(null);
+                    setConnectionId('');
+                }, 3000);
+            } else if (state === 'reconnection-successful') {
+                setIsReconnecting(false);
+                console.log('Reconnection successful - connection restored');
+            } else if (state === 'reconnection-failed') {
+                setIsReconnecting(false);
+                setError('Failed to reconnect. Connection lost.');
+                // Auto-clear error and reset to single player after delay
+                setTimeout(() => {
+                    setError(null);
+                    setGameMode('singlePlayer');
+                    setPlayerColor(null);
+                    setConnectionId('');
+                }, 5000);
+            } else if (state === 'failed') {
                 setIsConnected(false);
                 setIsConnecting(false);
 
-                if (state === 'failed') {
-                    setError('Connection failed');
-                } else if (state === 'disconnected') {
-                    // Check if this was a graceful disconnect
-                    if (gracefulDisconnectReceived) {
-                        setError('Opponent left the game');
-                        setGracefulDisconnectReceived(false); // Reset flag
-                    } else {
-                        setError('Connection lost unexpectedly');
-                    }
-                    // Auto-clear the error after a few seconds
-                    setTimeout(() => setError(null), 5000);
+                // Check if this was a graceful disconnect
+                if (gracefulDisconnectReceived) {
+                    console.log('Connection failed due to graceful disconnect');
+                    setError('Opponent left the game');
+                    setGracefulDisconnectReceived(false);
+
+                    // Reset to single player after graceful disconnect
+                    setTimeout(() => {
+                        setError(null);
+                        setGameMode('singlePlayer');
+                        setPlayerColor(null);
+                        setConnectionId('');
+                    }, 3000);
+                } else {
+                    // Don't immediately reset gameMode or show error - reconnection will be attempted
+                    console.log('Connection failed - reconnection will be attempted automatically');
                 }
+            } else if (state === 'disconnected' || state === 'closed') {
+                setIsConnected(false);
+                setIsConnecting(false);
 
-                // Reset to single player mode immediately
-                setGameMode('singlePlayer');
-                setPlayerColor(null);
-                console.log('Connection lost - returning to single player mode');
+                // Only show disconnection messages if not reconnecting and this was a graceful disconnect
+                if (!isReconnecting && gracefulDisconnectReceived) {
+                    setError('Opponent left the game');
+                    setGracefulDisconnectReceived(false);
 
-                // Reset connection ID after a delay to allow user to see what happened
-                setTimeout(() => {
-                    setConnectionId('');
-                }, 2000);
+                    // Reset to single player after graceful disconnect
+                    setTimeout(() => {
+                        setError(null);
+                        setGameMode('singlePlayer');
+                        setPlayerColor(null);
+                        setConnectionId('');
+                    }, 3000);
+                }
+                // For other disconnections, let the reconnection system handle it
             }
         });
 
@@ -193,10 +239,25 @@ const useWebRTC = () => {
         }
     }, []);
 
+    // Set callback for when data channel opens
+    const setOnDataChannelOpen = useCallback((callback) => {
+        if (signalingService.current) {
+            signalingService.current.setDataChannelOpenCallback(callback);
+        }
+    }, []);
+
+    // Request game state sync from peer
+    const requestGameStateSync = useCallback(() => {
+        if (signalingService.current && isConnected) {
+            signalingService.current.requestGameStateSync();
+        }
+    }, [isConnected]);
+
     return {
         // Connection State
         isConnecting,
         isConnected,
+        isReconnecting,
         connectionId,
         connectionState,
         error,
@@ -215,6 +276,8 @@ const useWebRTC = () => {
         sendDisconnectNotification,
         setGracefulDisconnectFlag,
         setOnMessageReceived,
+        setOnDataChannelOpen,
+        requestGameStateSync,
     };
 };
 

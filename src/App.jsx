@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import ChessBoard from "./components/ChessBoard.jsx";
 import Navbar from "./components/ui/Navbar.jsx";
 import useWebRTC from "./hooks/useWebRTC.js";
@@ -9,6 +9,7 @@ import "./App.css";
 function App() {
   const webRTC = useWebRTC();
   const [gameState, setGameState] = useState(() => createInitialGameState());
+  const lastSyncRequestTime = useRef(0); // Track last time we sent a sync request
 
   // Function to handle game state changes from ChessBoard
   const handleGameStateChange = (newGameState) => {
@@ -56,6 +57,30 @@ function App() {
         setGameState(innerMessage.initialGameState);
       }
     }
+    // Handle game state sync request
+    else if (message.type === 'requestGameStateSync') {
+      console.log('Peer requested current game state, sending...');
+
+      // Prevent rapid duplicate sync requests (debounce to max once per 2 seconds)
+      const now = Date.now();
+      const timeSinceLastRequest = now - lastSyncRequestTime.current;
+
+      // Use setGameState to get the current state and send it
+      setGameState(currentState => {
+        console.log('Sending current game state in response to request:', currentState);
+        webRTC.sendGameState({
+          type: 'gameStateSync',
+          gameState: currentState,
+          timestamp: now
+        });
+        return currentState; // Don't modify state, just use it
+      });
+
+      // Only request back if we haven't recently requested
+      if (timeSinceLastRequest > 2000) {
+        lastSyncRequestTime.current = now;
+      }
+    }
     // Handle graceful disconnect notification
     else if (message.type === 'disconnect' && message.data) {
       const innerMessage = message.data;
@@ -84,21 +109,20 @@ function App() {
     }
   }, [webRTC.setOnMessageReceived, handleMessage]);
 
-  // Send initial game state to guest when they connect (host only)
+  // Set up data channel open handler to send initial state when ready
   useEffect(() => {
-    if (webRTC.isConnected && webRTC.gameMode === 'host') {
-      // Small delay to ensure connection is fully established
-      setTimeout(() => {
-        console.log('Host sending initial game state to guest:', gameState);
+    if (webRTC.setOnDataChannelOpen && webRTC.gameMode === 'host') {
+      webRTC.setOnDataChannelOpen(() => {
+        console.log('Data channel ready - sending initial game state to guest:', gameState);
         webRTC.sendGameState({
           type: 'playerAssignment',
           hostColor: COLORS.WHITE,
           guestColor: COLORS.BLACK,
           initialGameState: gameState
         });
-      }, 1500); // Increased delay
+      });
     }
-  }, [webRTC.isConnected, webRTC.gameMode, gameState]);
+  }, [webRTC.setOnDataChannelOpen, webRTC.gameMode, gameState, webRTC]);
 
   // Reset game state when returning to single player
   useEffect(() => {
@@ -108,9 +132,29 @@ function App() {
     }
   }, [webRTC.gameMode]);
 
+  // Handle reconnection - request game state sync if we're the guest
+  useEffect(() => {
+    if (webRTC.isConnected && !webRTC.isReconnecting && webRTC.gameMode === 'guest') {
+      // Small delay to ensure connection is stable after reconnection
+      setTimeout(() => {
+        console.log('Reconnected as guest - requesting game state sync');
+        webRTC.requestGameStateSync();
+      }, 1000);
+    }
+  }, [webRTC.isConnected, webRTC.isReconnecting, webRTC.gameMode, webRTC.requestGameStateSync]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       <Navbar webRTC={webRTC} gameState={gameState} />
+
+      {/* Reconnection Status Overlay */}
+      {webRTC.isReconnecting && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-yellow-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-3">
+          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+          <span className="font-medium">Reconnecting to opponent...</span>
+        </div>
+      )}
+
       <ChessBoard
         gameState={gameState}
         onGameStateChange={handleGameStateChange}
