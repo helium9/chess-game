@@ -50,14 +50,16 @@ class WebRTCSignalingService {
                         'stun:stun2.l.google.com:19302',
                     ],
                 },
-                { urls: ["stun:20.251.170.209:3478"] },
+                {
+                    urls: [`stun:${import.meta.env.VITE_TURN_SERVER_URL}`]
+                },
                 {
                     urls: [
-                        "turn:20.251.170.209:3478?transport=udp",
-                        "turn:20.251.170.209:3478?transport=tcp"
+                        `turn:${import.meta.env.VITE_TURN_SERVER_URL}?transport=udp`,
+                        `turn:${import.meta.env.VITE_TURN_SERVER_URL}?transport=tcp`
                     ],
-                    username: "turnserver",
-                    credential: "Turnserver@123456"
+                    username: import.meta.env.VITE_TURN_SERVER_USERNAME,
+                    credential: import.meta.env.VITE_TURN_SERVER_CREDENTIAL
                 }
             ],
             iceCandidatePoolSize: 10,
