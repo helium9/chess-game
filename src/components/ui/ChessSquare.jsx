@@ -12,6 +12,7 @@ const ChessSquare = ({
   isLightSquare,
   highlightState,
   onClick,
+  isBoardFlipped = false,
 }) => {
   const styling = getSquareStyling(isLightSquare, highlightState);
   const { squareColor, ringClass, opacity, extraEffects } = styling;
@@ -31,7 +32,7 @@ const ChessSquare = ({
                 hover:brightness-110 hover:scale-105 transition-all duration-200 cursor-pointer relative ${ringClass} ${extraEffects}`}
     >
       {piece && (
-        <div className="relative transform transition-transform hover:scale-110">
+        <div className="relative transform transition-transform hover:scale-110" style={{ transform: isBoardFlipped ? 'rotate(180deg)' : 'rotate(0deg)' }}>
           <span
             className={`text-5xl select-none ${pieceColorClass}`}
             style={pieceStyling}

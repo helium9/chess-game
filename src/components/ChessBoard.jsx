@@ -53,6 +53,9 @@ const ChessBoard = ({
   console.log('ChessBoard - GameMode:', gameMode, 'PlayerColor:', playerColor, 'GameState:', gameState);
   const [message, setMessage] = useState("White to move");
 
+  // Determine if board should be flipped (Black player in multiplayer)
+  const isBoardFlipped = gameMode !== 'singlePlayer' && playerColor === COLORS.BLACK;
+
   // Move validation for multiplayer mode using existing utilities
   const canMakeMove = (piece, fromSquare = null) => {
     if (gameMode === 'singlePlayer') {
@@ -240,7 +243,7 @@ const ChessBoard = ({
 
           <div className="flex items-center transform transition-all hover:scale-[1.02]">
             <div className="flex flex-col-reverse gap-0 mr-3">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((rank) => (
+              {(isBoardFlipped ? [8, 7, 6, 5, 4, 3, 2, 1] : [1, 2, 3, 4, 5, 6, 7, 8]).map((rank) => (
                 <div
                   key={rank}
                   className="h-16 flex items-center text-amber-400 text-base font-bold drop-shadow-lg"
@@ -252,10 +255,15 @@ const ChessBoard = ({
 
             <div className="flex flex-col items-center">
               <div
-                className="grid grid-cols-8 gap-0 border-8 border-gradient-to-br from-amber-700 via-yellow-800 to-amber-900 shadow-2xl rounded-lg overflow-hidden backdrop-blur-sm"
+                className="grid grid-cols-8 gap-0 border-8 border-gradient-to-br from-amber-700 via-yellow-800 to-amber-900 shadow-2xl rounded-lg overflow-hidden backdrop-blur-sm transition-transform duration-300"
                 style={{
                   borderImage:
                     "linear-gradient(135deg, #d97706, #b45309, #92400e) 1",
+                  transform: isBoardFlipped ? 'rotate(180deg)' : 'rotate(0deg)',
+                  willChange: 'transform',
+                  backfaceVisibility: 'hidden',
+                  WebkitFontSmoothing: 'antialiased',
+                  WebkitBackfaceVisibility: 'hidden',
                 }}
               >
                 {gameState.board.map((row, rowIndex) =>
@@ -287,6 +295,7 @@ const ChessBoard = ({
                         isLightSquare={isLightSquare}
                         highlightState={highlightState}
                         onClick={handleSquareClick}
+                        isBoardFlipped={isBoardFlipped}
                       />
                     );
                   })
@@ -294,7 +303,7 @@ const ChessBoard = ({
               </div>
 
               <div className="flex mt-3 gap-0">
-                {["a", "b", "c", "d", "e", "f", "g", "h"].map((letter) => (
+                {(isBoardFlipped ? ["h", "g", "f", "e", "d", "c", "b", "a"] : ["a", "b", "c", "d", "e", "f", "g", "h"]).map((letter) => (
                   <div
                     key={letter}
                     className="w-16 text-center text-amber-400 text-base font-bold drop-shadow-lg"
