@@ -11,6 +11,13 @@ function App() {
   const [gameState, setGameState] = useState(() => createInitialGameState());
   const lastSyncRequestTime = useRef(0); // Track last time we sent a sync request
 
+  // Timer state - using ref to avoid re-renders
+  const timerStateRef = useRef({
+    whiteTime: 180000, // 3 minutes in ms
+    blackTime: 180000,
+    lastUpdate: Date.now()
+  });
+
   // Function to handle game state changes from ChessBoard
   const handleGameStateChange = (newGameState) => {
     console.log('Game state changed:', {
@@ -21,6 +28,28 @@ function App() {
       playerColor: webRTC.playerColor
     });
 
+    // Update timer state when a move is made (only in multiplayer)
+    if (webRTC.gameMode !== 'singlePlayer' && webRTC.isConnected) {
+      const now = Date.now();
+      const elapsed = now - timerStateRef.current.lastUpdate;
+
+      // Deduct time from the player who just moved (opposite of current turn)
+      const movingColor = newGameState.currentTurn === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE;
+      if (movingColor === COLORS.WHITE) {
+        timerStateRef.current.whiteTime = Math.max(0, timerStateRef.current.whiteTime - elapsed);
+      } else {
+        timerStateRef.current.blackTime = Math.max(0, timerStateRef.current.blackTime - elapsed);
+      }
+      timerStateRef.current.lastUpdate = now;
+
+      console.log('Timer updated:', {
+        whiteTime: timerStateRef.current.whiteTime,
+        blackTime: timerStateRef.current.blackTime,
+        elapsed,
+        movingColor
+      });
+    }
+
     setGameState(newGameState);
 
     // Send to peer if connected
@@ -28,11 +57,13 @@ function App() {
       console.log('Sending game state to peer:', {
         type: 'gameStateSync',
         gameState: newGameState,
+        timerState: { ...timerStateRef.current },
         timestamp: Date.now()
       });
       webRTC.sendGameState({
         type: 'gameStateSync',
         gameState: newGameState,
+        timerState: { ...timerStateRef.current },
         timestamp: Date.now()
       });
     }
@@ -52,6 +83,12 @@ function App() {
           console.log('State update - from:', prevState, 'to:', innerMessage.gameState);
           return innerMessage.gameState;
         });
+
+        // Update timer ref without causing re-render
+        if (innerMessage.timerState) {
+          timerStateRef.current = { ...innerMessage.timerState };
+          console.log('Timer state updated from peer:', innerMessage.timerState);
+        }
       } else if (innerMessage.type === 'playerAssignment') {
         console.log('Received initial game state from host:', innerMessage.initialGameState);
         setGameState(innerMessage.initialGameState);
@@ -71,6 +108,7 @@ function App() {
         webRTC.sendGameState({
           type: 'gameStateSync',
           gameState: currentState,
+          timerState: { ...timerStateRef.current },
           timestamp: now
         });
         return currentState; // Don't modify state, just use it
@@ -129,6 +167,12 @@ function App() {
     if (webRTC.gameMode === 'singlePlayer') {
       console.log('Returning to single player - resetting game state');
       setGameState(createInitialGameState());
+      // Reset timer state as well
+      timerStateRef.current = {
+        whiteTime: 180000,
+        blackTime: 180000,
+        lastUpdate: Date.now()
+      };
     }
   }, [webRTC.gameMode]);
 
@@ -142,6 +186,16 @@ function App() {
       }, 1000);
     }
   }, [webRTC.isConnected, webRTC.isReconnecting, webRTC.gameMode, webRTC.requestGameStateSync]);
+
+  // Reset lastUpdate timestamp when reconnection completes to prevent time deduction bug
+  useEffect(() => {
+    // When reconnection completes (transitions from true to false while connected)
+    if (webRTC.isConnected && !webRTC.isReconnecting) {
+      // Update lastUpdate to current time to prevent elapsed time from including reconnection period
+      timerStateRef.current.lastUpdate = Date.now();
+      console.log('Reconnection completed - reset timer lastUpdate to prevent time deduction bug');
+    }
+  }, [webRTC.isConnected, webRTC.isReconnecting]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
@@ -161,6 +215,8 @@ function App() {
         gameMode={webRTC.gameMode}
         playerColor={webRTC.playerColor}
         isConnected={webRTC.isConnected}
+        timerStateRef={timerStateRef}
+        isReconnecting={webRTC.isReconnecting}
       />
     </div>
   );

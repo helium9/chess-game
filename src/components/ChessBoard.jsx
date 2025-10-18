@@ -22,13 +22,16 @@ import GameControls from "./ui/GameControls.jsx";
 import PromotionDialog from "./ui/PromotionDialog.jsx";
 import DeCombineConfirmDialog from "./ui/DeCombineConfirmDialog.jsx";
 import GameLegend from "./ui/GameLegend.jsx";
+import Timer from "./ui/Timer.jsx";
 
 const ChessBoard = ({
   gameState: externalGameState = null,
   onGameStateChange = null,
   gameMode = 'singlePlayer',
   playerColor = null,
-  isConnected = false
+  isConnected = false,
+  timerStateRef = null,
+  isReconnecting = false
 }) => {
   // Use external game state if provided, otherwise use internal state
   const [internalGameState, setInternalGameState] = useState(createInitialGameState());
@@ -241,78 +244,104 @@ const ChessBoard = ({
             isWhitePieces={false}
           />
 
-          <div className="flex items-center transform transition-all hover:scale-[1.02]">
-            <div className="flex flex-col-reverse gap-0 mr-3">
-              {(isBoardFlipped ? [8, 7, 6, 5, 4, 3, 2, 1] : [1, 2, 3, 4, 5, 6, 7, 8]).map((rank) => (
-                <div
-                  key={rank}
-                  className="h-16 flex items-center text-amber-400 text-base font-bold drop-shadow-lg"
-                >
-                  {rank}
-                </div>
-              ))}
-            </div>
+          <div className="flex flex-col items-center gap-4">
+            {/* Timer for top player (Black in normal view, White in flipped view) */}
+            {gameMode !== 'singlePlayer' && isConnected && timerStateRef && (
+              <Timer
+                timerStateRef={timerStateRef}
+                color={isBoardFlipped ? COLORS.WHITE : COLORS.BLACK}
+                currentTurn={gameState.currentTurn}
+                gameMode={gameMode}
+                isConnected={isConnected}
+                isReconnecting={isReconnecting}
+              />
+            )}
 
-            <div className="flex flex-col items-center">
-              <div
-                className="grid grid-cols-8 gap-0 border-8 border-gradient-to-br from-amber-700 via-yellow-800 to-amber-900 shadow-2xl rounded-lg overflow-hidden backdrop-blur-sm transition-transform duration-300"
-                style={{
-                  borderImage:
-                    "linear-gradient(135deg, #d97706, #b45309, #92400e) 1",
-                  transform: isBoardFlipped ? 'rotate(180deg)' : 'rotate(0deg)',
-                  willChange: 'transform',
-                  backfaceVisibility: 'hidden',
-                  WebkitFontSmoothing: 'antialiased',
-                  WebkitBackfaceVisibility: 'hidden',
-                }}
-              >
-                {gameState.board.map((row, rowIndex) =>
-                  row.map((piece, colIndex) => {
-                    const isLightSquare = (rowIndex + colIndex) % 2 === 0;
-                    const highlightState = {
-                      selected: isSelected(rowIndex, colIndex),
-                      isLegalMove: isLegalMoveSquare(rowIndex, colIndex),
-                      eligible: isEligibleForCombine(rowIndex, colIndex),
-                      partner: isEligiblePartner(rowIndex, colIndex),
-                      anchor: isCombineAnchor(rowIndex, colIndex),
-                      eligibleHybrid: isEligibleForDeCombine(
-                        rowIndex,
-                        colIndex
-                      ),
-                      hybridSelected: isSelectedHybrid(rowIndex, colIndex),
-                      spawnSquare: isSpawnSquare(rowIndex, colIndex),
-                      spawnSelected: isSelectedSpawnSquare(rowIndex, colIndex),
-                      combineMode,
-                      deCombineMode: deCombine.mode,
-                    };
-
-                    return (
-                      <ChessSquare
-                        key={`${rowIndex}-${colIndex}`}
-                        row={rowIndex}
-                        col={colIndex}
-                        piece={piece}
-                        isLightSquare={isLightSquare}
-                        highlightState={highlightState}
-                        onClick={handleSquareClick}
-                        isBoardFlipped={isBoardFlipped}
-                      />
-                    );
-                  })
-                )}
-              </div>
-
-              <div className="flex mt-3 gap-0">
-                {(isBoardFlipped ? ["h", "g", "f", "e", "d", "c", "b", "a"] : ["a", "b", "c", "d", "e", "f", "g", "h"]).map((letter) => (
+            <div className="flex items-center transform transition-all hover:scale-[1.02]">
+              <div className="flex flex-col-reverse gap-0 mr-3">
+                {(isBoardFlipped ? [8, 7, 6, 5, 4, 3, 2, 1] : [1, 2, 3, 4, 5, 6, 7, 8]).map((rank) => (
                   <div
-                    key={letter}
-                    className="w-16 text-center text-amber-400 text-base font-bold drop-shadow-lg"
+                    key={rank}
+                    className="h-16 flex items-center text-amber-400 text-base font-bold drop-shadow-lg"
                   >
-                    {letter}
+                    {rank}
                   </div>
                 ))}
               </div>
+
+              <div className="flex flex-col items-center">
+                <div
+                  className="grid grid-cols-8 gap-0 border-8 border-gradient-to-br from-amber-700 via-yellow-800 to-amber-900 shadow-2xl rounded-lg overflow-hidden backdrop-blur-sm transition-transform duration-300"
+                  style={{
+                    borderImage:
+                      "linear-gradient(135deg, #d97706, #b45309, #92400e) 1",
+                    transform: isBoardFlipped ? 'rotate(180deg)' : 'rotate(0deg)',
+                    willChange: 'transform',
+                    backfaceVisibility: 'hidden',
+                    WebkitFontSmoothing: 'antialiased',
+                    WebkitBackfaceVisibility: 'hidden',
+                  }}
+                >
+                  {gameState.board.map((row, rowIndex) =>
+                    row.map((piece, colIndex) => {
+                      const isLightSquare = (rowIndex + colIndex) % 2 === 0;
+                      const highlightState = {
+                        selected: isSelected(rowIndex, colIndex),
+                        isLegalMove: isLegalMoveSquare(rowIndex, colIndex),
+                        eligible: isEligibleForCombine(rowIndex, colIndex),
+                        partner: isEligiblePartner(rowIndex, colIndex),
+                        anchor: isCombineAnchor(rowIndex, colIndex),
+                        eligibleHybrid: isEligibleForDeCombine(
+                          rowIndex,
+                          colIndex
+                        ),
+                        hybridSelected: isSelectedHybrid(rowIndex, colIndex),
+                        spawnSquare: isSpawnSquare(rowIndex, colIndex),
+                        spawnSelected: isSelectedSpawnSquare(rowIndex, colIndex),
+                        combineMode,
+                        deCombineMode: deCombine.mode,
+                      };
+
+                      return (
+                        <ChessSquare
+                          key={`${rowIndex}-${colIndex}`}
+                          row={rowIndex}
+                          col={colIndex}
+                          piece={piece}
+                          isLightSquare={isLightSquare}
+                          highlightState={highlightState}
+                          onClick={handleSquareClick}
+                          isBoardFlipped={isBoardFlipped}
+                        />
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="flex mt-3 gap-0">
+                  {(isBoardFlipped ? ["h", "g", "f", "e", "d", "c", "b", "a"] : ["a", "b", "c", "d", "e", "f", "g", "h"]).map((letter) => (
+                    <div
+                      key={letter}
+                      className="w-16 text-center text-amber-400 text-base font-bold drop-shadow-lg"
+                    >
+                      {letter}
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
+
+            {/* Timer for bottom player (White in normal view, Black in flipped view) */}
+            {gameMode !== 'singlePlayer' && isConnected && timerStateRef && (
+              <Timer
+                timerStateRef={timerStateRef}
+                color={isBoardFlipped ? COLORS.BLACK : COLORS.WHITE}
+                currentTurn={gameState.currentTurn}
+                gameMode={gameMode}
+                isConnected={isConnected}
+                isReconnecting={isReconnecting}
+              />
+            )}
           </div>
 
           <CapturedPieces

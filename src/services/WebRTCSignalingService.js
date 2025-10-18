@@ -69,14 +69,19 @@ class WebRTCSignalingService {
 
         // Set up data channel for game state exchange
         this.dataChannel = this.localConnection.createDataChannel('gameState', {
-            ordered: true
+            ordered: true,
+            maxRetransmits: 3  // Retry failed messages up to 3 times
         });
 
         this.setupDataChannelHandlers(this.dataChannel);
 
         // Handle remote data channel
         this.localConnection.ondatachannel = (event) => {
+            console.log('Remote data channel received');
             const receiveChannel = event.channel;
+            // Update the data channel reference to use the remote channel
+            // This is important for the answerer side
+            this.dataChannel = receiveChannel;
             this.setupDataChannelHandlers(receiveChannel);
         };
 
@@ -183,14 +188,15 @@ class WebRTCSignalingService {
             const message = JSON.parse(event.data);
             console.log('Received message:', message);
 
+            // Update heartbeat timestamp for ANY message received (indicates connection is alive)
+            this.lastHeartbeatReceived = Date.now();
+
             // Handle heartbeat messages
             if (message.type === 'heartbeat') {
-                this.lastHeartbeatReceived = Date.now();
                 console.log('Heartbeat received, sending response');
                 // Send heartbeat response
                 this.sendHeartbeatResponse();
             } else if (message.type === 'heartbeatResponse') {
-                this.lastHeartbeatReceived = Date.now();
                 console.log('Heartbeat response received');
             } else if (message.type === 'disconnect' && message.data?.type === 'gracefulDisconnect') {
                 console.log('Received graceful disconnect notification from peer');
@@ -228,10 +234,11 @@ class WebRTCSignalingService {
         };
 
         channel.onerror = (error) => {
+            console.error('Data channel error:', error);
+            // Update heartbeat to prevent false positive timeouts after error
+            this.lastHeartbeatReceived = Date.now();
             // Only log unexpected errors, not normal close operations
             if (error.error && error.error.message !== 'User-Initiated Abort, reason=Close called') {
-                console.error('Data channel error:', error);
-            } else {
                 console.log('Data channel closed normally');
             }
         };
@@ -781,6 +788,8 @@ class WebRTCSignalingService {
                 data: gameState,
                 timestamp: Date.now()
             }));
+            // Update heartbeat timestamp since we successfully sent data (connection is alive)
+            this.lastHeartbeatReceived = Date.now();
         } else {
             console.warn('Data channel not ready for sending');
         }
@@ -794,6 +803,8 @@ class WebRTCSignalingService {
                 data: move,
                 timestamp: Date.now()
             }));
+            // Update heartbeat timestamp since we successfully sent data (connection is alive)
+            this.lastHeartbeatReceived = Date.now();
         } else {
             console.warn('Data channel not ready for sending');
         }
@@ -807,6 +818,8 @@ class WebRTCSignalingService {
                 timestamp: Date.now()
             }));
             console.log('Requested game state sync from peer');
+            // Update heartbeat timestamp since we successfully sent data (connection is alive)
+            this.lastHeartbeatReceived = Date.now();
         }
     }
 
