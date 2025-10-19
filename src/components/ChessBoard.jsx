@@ -28,25 +28,27 @@ import Timer from "./ui/Timer.jsx";
 const ChessBoard = ({
   gameState: externalGameState = null,
   onGameStateChange = null,
-  gameMode = 'singlePlayer',
+  gameMode = "singlePlayer",
   playerColor = null,
   isConnected = false,
   timerStateRef = null,
   isReconnecting = false,
   isAiThinking = false,
-  onResetToSinglePlayer = null
+  onResetToSinglePlayer = null,
 }) => {
   // Use external game state if provided, otherwise use internal state
-  const [internalGameState, setInternalGameState] = useState(createInitialGameState());
+  const [internalGameState, setInternalGameState] = useState(
+    createInitialGameState()
+  );
   const gameState = externalGameState || internalGameState;
 
   // Game state updater - calls parent callback if provided
   const updateGameState = (newGameState) => {
-    console.log('ChessBoard updateGameState called:', {
+    console.log("ChessBoard updateGameState called:", {
       hasCallback: !!onGameStateChange,
       gameMode,
       playerColor,
-      newState: newGameState
+      newState: newGameState,
     });
 
     if (onGameStateChange) {
@@ -60,22 +62,25 @@ const ChessBoard = ({
   const [message, setMessage] = useState("White to move");
 
   // Determine if board should be flipped (Black player in multiplayer)
-  const isBoardFlipped = gameMode !== 'singlePlayer' && playerColor === COLORS.BLACK;
+  const isBoardFlipped =
+    gameMode !== "singlePlayer" && playerColor === COLORS.BLACK;
 
   // Move validation for multiplayer mode using existing utilities
   const canMakeMove = (piece, fromSquare = null) => {
-    if (gameMode === 'singlePlayer') {
+    if (gameMode === "singlePlayer") {
       return true; // Allow any move in single player
     }
 
     if (!piece) return false;
 
     // Engine mode: only WHITE (player) can move, and not during AI thinking
-    if (gameMode === 'vsEngine') {
+    if (gameMode === "vsEngine") {
       const pieceColor = getPieceColor(piece);
-      return pieceColor === COLORS.WHITE &&
+      return (
+        pieceColor === COLORS.WHITE &&
         gameState.currentTurn === COLORS.WHITE &&
-        !isAiThinking;
+        !isAiThinking
+      );
     }
 
     // Multiplayer modes (host/guest): use existing utility functions
@@ -99,7 +104,12 @@ const ChessBoard = ({
     isSelected,
     isLegalMoveSquare,
     clearSelection,
-  } = useMoveHandler(gameState, updateGameState, setMessage, openPromotionDialog);
+  } = useMoveHandler(
+    gameState,
+    updateGameState,
+    setMessage,
+    openPromotionDialog
+  );
 
   // useEffect(() => {
   //   console.log('Per-piece legal moves (useMoveHandler):', legalMoves);
@@ -166,7 +176,11 @@ const ChessBoard = ({
     // For piece selection, check if we can move this piece
     if (piece && selectedSquare === null && !canMakeMove(piece, [row, col])) {
       // console.log(`Cannot select piece ${piece} - not your piece or not your turn`);
-      setMessage(`It's ${gameState.currentTurn}'s turn. You can only move ${playerColor || 'any'} pieces.`);
+      setMessage(
+        `It's ${gameState.currentTurn}'s turn. You can only move ${
+          playerColor || "any"
+        } pieces.`
+      );
       return;
     }
 
@@ -201,8 +215,12 @@ const ChessBoard = ({
 
   const handleUndo = () => {
     // Disable undo/redo in multiplayer mode and engine mode (TODO: implement undo for engine mode)
-    if (gameMode !== 'singlePlayer') {
-      setMessage(`Undo/Redo is disabled in ${gameMode === 'vsEngine' ? 'engine' : 'multiplayer'} mode`);
+    if (gameMode !== "singlePlayer") {
+      setMessage(
+        `Undo/Redo is disabled in ${
+          gameMode === "vsEngine" ? "engine" : "multiplayer"
+        } mode`
+      );
       return;
     }
 
@@ -216,8 +234,12 @@ const ChessBoard = ({
 
   const handleRedo = () => {
     // Disable undo/redo in multiplayer mode and engine mode (TODO: implement redo for engine mode)
-    if (gameMode !== 'singlePlayer') {
-      setMessage(`Undo/Redo is disabled in ${gameMode === 'vsEngine' ? 'engine' : 'multiplayer'} mode`);
+    if (gameMode !== "singlePlayer") {
+      setMessage(
+        `Undo/Redo is disabled in ${
+          gameMode === "vsEngine" ? "engine" : "multiplayer"
+        } mode`
+      );
       return;
     }
 
@@ -231,7 +253,7 @@ const ChessBoard = ({
 
   const resetGame = () => {
     // If in engine mode, reset to single player mode
-    if (gameMode === 'vsEngine') {
+    if (gameMode === "vsEngine") {
       if (onResetToSinglePlayer) {
         onResetToSinglePlayer();
       }
@@ -252,17 +274,17 @@ const ChessBoard = ({
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-4 relative overflow-hidden">
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-0 sm:p-4 relative overflow-hidden">
       <div className="absolute inset-0 opacity-20">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-purple-500 rounded-full blur-3xl animate-pulse"></div>
+        <div className="absolute top-1/4 left-1/4 w-48 h-48 sm:w-96 sm:h-96 bg-purple-500 rounded-full blur-3xl animate-pulse"></div>
         <div
-          className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500 rounded-full blur-3xl animate-pulse"
+          className="absolute bottom-1/4 right-1/4 w-48 h-48 sm:w-96 sm:h-96 bg-blue-500 rounded-full blur-3xl animate-pulse"
           style={{ animationDelay: "1s" }}
         ></div>
       </div>
 
-      <div className="flex flex-col items-center max-w-6xl w-full relative z-10">
-        <h1 className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 mb-6 drop-shadow-2xl tracking-tight animate-fade-in">
+      <div className="flex flex-col items-center max-w-7xl w-full relative z-10">
+        <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 mb-2 sm:mb-4 md:mb-6 drop-shadow-2xl tracking-tight animate-fade-in px-2">
           Interactive Chess
         </h1>
 
@@ -270,49 +292,59 @@ const ChessBoard = ({
         {combineMode && <CombineModeIndicator />}
         {deCombine.mode && <DeCombineModeIndicator />}
 
-        <div className="flex gap-8 flex-wrap justify-center">
-          <CapturedPieces
-            title="Captured by White"
-            pieces={gameState.capturedPieces.black}
-            isWhitePieces={false}
-          />
+        <div className="flex flex-col lg:flex-row gap-2 sm:gap-6 lg:gap-8 flex-wrap justify-center w-full px-0 sm:px-4">
+          {/* Hide captured pieces on mobile, show on large screens */}
+          <div className="hidden lg:block">
+            <CapturedPieces
+              title="Captured by White"
+              pieces={gameState.capturedPieces.black}
+              isWhitePieces={false}
+            />
+          </div>
 
-          <div className="flex flex-col items-center gap-4">
+          <div className="flex flex-col items-center gap-1 sm:gap-3 md:gap-4 flex-1 max-w-full lg:max-w-2xl">
             {/* Timer for top player (Black in normal view, White in flipped view) */}
-            {(gameMode === 'vsEngine' || (gameMode !== 'singlePlayer' && isConnected)) && timerStateRef && (
-              <Timer
-                timerStateRef={timerStateRef}
-                color={isBoardFlipped ? COLORS.WHITE : COLORS.BLACK}
-                currentTurn={gameState.currentTurn}
-                gameMode={gameMode}
-                isConnected={isConnected}
-                isReconnecting={isReconnecting}
-              />
-            )}
+            {(gameMode === "vsEngine" ||
+              (gameMode !== "singlePlayer" && isConnected)) &&
+              timerStateRef && (
+                <Timer
+                  timerStateRef={timerStateRef}
+                  color={isBoardFlipped ? COLORS.WHITE : COLORS.BLACK}
+                  currentTurn={gameState.currentTurn}
+                  gameMode={gameMode}
+                  isConnected={isConnected}
+                  isReconnecting={isReconnecting}
+                />
+              )}
 
-            <div className="flex items-center transform transition-all hover:scale-[1.02]">
-              <div className="flex flex-col-reverse gap-0 mr-3">
-                {(isBoardFlipped ? [8, 7, 6, 5, 4, 3, 2, 1] : [1, 2, 3, 4, 5, 6, 7, 8]).map((rank) => (
+            <div className="flex items-center transform transition-all hover:scale-[1.01] sm:hover:scale-[1.02] w-full justify-center px-1 sm:px-0">
+              <div className="flex flex-col-reverse gap-0 mr-0.5 sm:mr-2 md:mr-3">
+                {(isBoardFlipped
+                  ? [8, 7, 6, 5, 4, 3, 2, 1]
+                  : [1, 2, 3, 4, 5, 6, 7, 8]
+                ).map((rank) => (
                   <div
                     key={rank}
-                    className="h-16 flex items-center text-amber-400 text-base font-bold drop-shadow-lg"
+                    className="h-8 sm:h-12 md:h-14 lg:h-16 flex items-center text-amber-400 text-[10px] sm:text-sm md:text-base font-bold drop-shadow-lg"
                   >
                     {rank}
                   </div>
                 ))}
               </div>
 
-              <div className="flex flex-col items-center">
+              <div className="flex flex-col items-center max-w-full">
                 <div
-                  className="grid grid-cols-8 gap-0 border-8 border-gradient-to-br from-amber-700 via-yellow-800 to-amber-900 shadow-2xl rounded-lg overflow-hidden backdrop-blur-sm transition-transform duration-300"
+                  className="grid grid-cols-8 gap-0 border-2 sm:border-4 md:border-8 border-gradient-to-br from-amber-700 via-yellow-800 to-amber-900 shadow-2xl overflow-hidden backdrop-blur-sm transition-transform duration-300"
                   style={{
                     borderImage:
                       "linear-gradient(135deg, #d97706, #b45309, #92400e) 1",
-                    transform: isBoardFlipped ? 'rotate(180deg)' : 'rotate(0deg)',
-                    willChange: 'transform',
-                    backfaceVisibility: 'hidden',
-                    WebkitFontSmoothing: 'antialiased',
-                    WebkitBackfaceVisibility: 'hidden',
+                    transform: isBoardFlipped
+                      ? "rotate(180deg)"
+                      : "rotate(0deg)",
+                    willChange: "transform",
+                    backfaceVisibility: "hidden",
+                    WebkitFontSmoothing: "antialiased",
+                    WebkitBackfaceVisibility: "hidden",
                   }}
                 >
                   {gameState.board.map((row, rowIndex) =>
@@ -330,7 +362,10 @@ const ChessBoard = ({
                         ),
                         hybridSelected: isSelectedHybrid(rowIndex, colIndex),
                         spawnSquare: isSpawnSquare(rowIndex, colIndex),
-                        spawnSelected: isSelectedSpawnSquare(rowIndex, colIndex),
+                        spawnSelected: isSelectedSpawnSquare(
+                          rowIndex,
+                          colIndex
+                        ),
                         combineMode,
                         deCombineMode: deCombine.mode,
                       };
@@ -351,11 +386,14 @@ const ChessBoard = ({
                   )}
                 </div>
 
-                <div className="flex mt-3 gap-0">
-                  {(isBoardFlipped ? ["h", "g", "f", "e", "d", "c", "b", "a"] : ["a", "b", "c", "d", "e", "f", "g", "h"]).map((letter) => (
+                <div className="flex mt-0.5 sm:mt-2 md:mt-3 gap-0">
+                  {(isBoardFlipped
+                    ? ["h", "g", "f", "e", "d", "c", "b", "a"]
+                    : ["a", "b", "c", "d", "e", "f", "g", "h"]
+                  ).map((letter) => (
                     <div
                       key={letter}
-                      className="w-16 text-center text-amber-400 text-base font-bold drop-shadow-lg"
+                      className="w-8 sm:w-12 md:w-14 lg:w-16 text-center text-amber-400 text-[10px] sm:text-sm md:text-base font-bold drop-shadow-lg"
                     >
                       {letter}
                     </div>
@@ -365,18 +403,37 @@ const ChessBoard = ({
             </div>
 
             {/* Timer for bottom player (White in normal view, Black in flipped view) */}
-            {(gameMode === 'vsEngine' || (gameMode !== 'singlePlayer' && isConnected)) && timerStateRef && (
-              <Timer
-                timerStateRef={timerStateRef}
-                color={isBoardFlipped ? COLORS.BLACK : COLORS.WHITE}
-                currentTurn={gameState.currentTurn}
-                gameMode={gameMode}
-                isConnected={isConnected}
-                isReconnecting={isReconnecting}
-              />
-            )}
+            {(gameMode === "vsEngine" ||
+              (gameMode !== "singlePlayer" && isConnected)) &&
+              timerStateRef && (
+                <Timer
+                  timerStateRef={timerStateRef}
+                  color={isBoardFlipped ? COLORS.BLACK : COLORS.WHITE}
+                  currentTurn={gameState.currentTurn}
+                  gameMode={gameMode}
+                  isConnected={isConnected}
+                  isReconnecting={isReconnecting}
+                />
+              )}
           </div>
 
+          {/* Hide captured pieces on mobile, show on large screens */}
+          <div className="hidden lg:block">
+            <CapturedPieces
+              title="Captured by Black"
+              pieces={gameState.capturedPieces.white}
+              isWhitePieces={true}
+            />
+          </div>
+        </div>
+
+        {/* Show captured pieces on mobile in a compact row */}
+        <div className="lg:hidden flex flex-row gap-2 sm:gap-4 justify-center items-start mt-2 sm:mt-4 w-full px-1">
+          <CapturedPieces
+            title="Captured by White"
+            pieces={gameState.capturedPieces.black}
+            isWhitePieces={false}
+          />
           <CapturedPieces
             title="Captured by Black"
             pieces={gameState.capturedPieces.white}
