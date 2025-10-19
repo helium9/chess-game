@@ -126,28 +126,28 @@ class WebRTCSignalingService {
 
         // Monitor ICE connection state for reconnection logic
         this.localConnection.oniceconnectionstatechange = () => {
-            console.log('ICE connection state:', this.localConnection.iceConnectionState);
+            // console.log('ICE connection state:', this.localConnection.iceConnectionState);
 
             // Handle ICE connection failures with debouncing
             if (this.localConnection.iceConnectionState === 'failed') {
-                console.log('ICE connection failed - scheduling reconnection');
+                // console.log('ICE connection failed - scheduling reconnection');
                 if (!this.gracefulDisconnectReceived) {
                     this.scheduleConnectionLossHandler();
                 }
             } else if (this.localConnection.iceConnectionState === 'disconnected') {
-                console.log('ICE connection disconnected - will check if this persists');
+                // console.log('ICE connection disconnected - will check if this persists');
                 // Give it a moment to see if it recovers
                 setTimeout(() => {
                     if (this.localConnection &&
                         this.localConnection.iceConnectionState === 'disconnected' &&
                         !this.gracefulDisconnectReceived) {
-                        console.log('ICE connection still disconnected - scheduling reconnection');
+                        // console.log('ICE connection still disconnected - scheduling reconnection');
                         this.scheduleConnectionLossHandler();
                     }
                 }, 5000); // Wait 5 seconds before treating as persistent disconnection
             } else if (this.localConnection.iceConnectionState === 'connected' ||
                 this.localConnection.iceConnectionState === 'completed') {
-                console.log('ICE connection established/completed');
+                // console.log('ICE connection established/completed');
                 // Don't cancel pending reconnections - let scheduleConnectionLossHandler decide
                 // Update heartbeat timestamp to reflect good connection
                 this.lastHeartbeatReceived = Date.now();
@@ -158,11 +158,11 @@ class WebRTCSignalingService {
                     this.dataChannel.readyState === 'open' &&
                     this.lastRole === 'receiver') {
                     setTimeout(() => {
-                        console.log('Connection recovered - guest requesting game state sync from host');
+                        // console.log('Connection recovered - guest requesting game state sync from host');
                         this.requestGameStateSync();
                     }, 1000); // Small delay to ensure connection is stable
                 } else if (this.lastRole === 'initiator') {
-                    console.log('Connection recovered - host waiting for sync request from guest');
+                    // console.log('Connection recovered - host waiting for sync request from guest');
                 }
             }
         };
@@ -173,7 +173,7 @@ class WebRTCSignalingService {
     // Set up data channel event handlers
     setupDataChannelHandlers(channel) {
         channel.onopen = () => {
-            console.log('Data channel opened');
+            // console.log('Data channel opened');
             // Notify that data channel is ready
             if (this.onDataChannelOpen) {
                 this.onDataChannelOpen();
@@ -181,25 +181,25 @@ class WebRTCSignalingService {
         };
 
         channel.onclose = () => {
-            console.log('Data channel closed');
+            // console.log('Data channel closed');
         };
 
         channel.onmessage = (event) => {
             const message = JSON.parse(event.data);
-            console.log('Received message:', message);
+            // console.log('Received message:', message);
 
             // Update heartbeat timestamp for ANY message received (indicates connection is alive)
             this.lastHeartbeatReceived = Date.now();
 
             // Handle heartbeat messages
             if (message.type === 'heartbeat') {
-                console.log('Heartbeat received, sending response');
+                // console.log('Heartbeat received, sending response');
                 // Send heartbeat response
                 this.sendHeartbeatResponse();
             } else if (message.type === 'heartbeatResponse') {
-                console.log('Heartbeat response received');
+                // console.log('Heartbeat response received');
             } else if (message.type === 'disconnect' && message.data?.type === 'gracefulDisconnect') {
-                console.log('Received graceful disconnect notification from peer');
+                // console.log('Received graceful disconnect notification from peer');
                 // Set flag to prevent reconnection attempts
                 this.gracefulDisconnectReceived = true;
                 // Stop heartbeat and reconnection attempts
@@ -223,7 +223,7 @@ class WebRTCSignalingService {
                     this.onConnectionStateChange('graceful-disconnect');
                 }
             } else if (message.type === 'requestGameStateSync') {
-                console.log('Peer requested game state sync');
+                // console.log('Peer requested game state sync');
                 // Forward this request to the application layer
                 if (this.onDataChannelMessage) {
                     this.onDataChannelMessage(message);
@@ -239,7 +239,7 @@ class WebRTCSignalingService {
             this.lastHeartbeatReceived = Date.now();
             // Only log unexpected errors, not normal close operations
             if (error.error && error.error.message !== 'User-Initiated Abort, reason=Close called') {
-                console.log('Data channel closed normally');
+                // console.log('Data channel closed normally');
             }
         };
     }
@@ -298,10 +298,10 @@ class WebRTCSignalingService {
                         // Add error handling to prevent crashes when adding to closed connection
                         if (pc.signalingState !== 'closed') {
                             pc.addIceCandidate(candidate).catch(err => {
-                                console.log('Error adding ICE candidate:', err.message);
+                                // console.log('Error adding ICE candidate:', err.message);
                             });
                         } else {
-                            console.log('Skipping ICE candidate - connection is closed');
+                            // console.log('Skipping ICE candidate - connection is closed');
                         }
                     }
                 });
@@ -311,7 +311,7 @@ class WebRTCSignalingService {
             this.startHeartbeat();
             return this.callDoc.id;
         } catch (error) {
-            console.error('Error creating call:', error);
+            // console.error('Error creating call:', error);
             throw error;
         }
     }
@@ -375,7 +375,7 @@ class WebRTCSignalingService {
                         // Add error handling to prevent crashes when adding to closed connection
                         if (pc.signalingState !== 'closed') {
                             pc.addIceCandidate(candidate).catch(err => {
-                                console.log('Error adding ICE candidate:', err.message);
+                                // console.log('Error adding ICE candidate:', err.message);
                             });
                         } else {
                             console.log('Skipping ICE candidate - connection is closed');
@@ -413,18 +413,18 @@ class WebRTCSignalingService {
                 connectionState === 'disconnected';
 
             if (shouldReconnect) {
-                console.log('Connection loss confirmed - initiating reconnection');
+                // console.log('Connection loss confirmed - initiating reconnection');
                 this.handleConnectionLoss();
             } else {
-                console.log('Connection recovered - cancelling reconnection attempt');
+                // console.log('Connection recovered - cancelling reconnection attempt');
                 // Only guest should request game state sync after recovery
                 if (this.dataChannel &&
                     this.dataChannel.readyState === 'open' &&
                     this.lastRole === 'receiver') {
-                    console.log('Guest requesting sync after recovery');
+                    // console.log('Guest requesting sync after recovery');
                     this.requestGameStateSync();
                 } else if (this.lastRole === 'initiator') {
-                    console.log('Host recovered - no sync request needed');
+                    // console.log('Host recovered - no sync request needed');
                 }
             }
         }, 2000); // 2 second debounce
@@ -438,31 +438,31 @@ class WebRTCSignalingService {
 
         // Don't attempt reconnection if we received a graceful disconnect
         if (this.gracefulDisconnectReceived) {
-            console.log('Graceful disconnect received - not attempting reconnection');
+            // console.log('Graceful disconnect received - not attempting reconnection');
             return;
         }
 
         if (this.isReconnecting) {
-            console.log('Already reconnecting, ignoring additional connection loss');
+            // console.log('Already reconnecting, ignoring additional connection loss');
             return;
         }
 
         if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-            console.log('Max reconnection attempts reached');
+            // console.log('Max reconnection attempts reached');
             this.notifyReconnectionFailed();
             return;
         }
 
         // Don't attempt reconnection if we're manually disconnecting
         if (!this.lastCallId || !this.lastRole) {
-            console.log('No call to reconnect to');
+            // console.log('No call to reconnect to');
             return;
         }
 
         this.isReconnecting = true;
         this.reconnectAttempts++;
 
-        console.log(`Attempting reconnection ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
+        // console.log(`Attempting reconnection ${this.reconnectAttempts}/${this.maxReconnectAttempts}`);
 
         // Notify that we're attempting to reconnect
         if (this.onConnectionStateChange) {
@@ -489,20 +489,20 @@ class WebRTCSignalingService {
 
             // If we get here, reconnection was initiated successfully
             // Wait for connection to be fully established before declaring success
-            console.log('Reconnection initiated, waiting for connection establishment...');
+            // console.log('Reconnection initiated, waiting for connection establishment...');
 
             // Set a timeout in case reconnection takes too long
             this.reconnectionTimeout = setTimeout(() => {
                 if (this.isReconnecting && this.localConnection?.connectionState !== 'connected') {
-                    console.log('Reconnection timeout - connection not established in time');
+                    // console.log('Reconnection timeout - connection not established in time');
                     this.isReconnecting = false;
 
                     // Try again if we haven't exceeded max attempts
                     if (this.reconnectAttempts < this.maxReconnectAttempts) {
-                        console.log('Will retry reconnection');
+                        // console.log('Will retry reconnection');
                         this.handleConnectionLoss();
                     } else {
-                        console.log('Max reconnection attempts reached');
+                        // console.log('Max reconnection attempts reached');
                         this.notifyReconnectionFailed();
                     }
                 }
@@ -523,7 +523,7 @@ class WebRTCSignalingService {
 
             // Try again if we haven't exceeded max attempts
             if (this.reconnectAttempts < this.maxReconnectAttempts) {
-                console.log(`Will retry in ${this.reconnectDelay}ms`);
+                // console.log(`Will retry in ${this.reconnectDelay}ms`);
                 this.reconnectTimeout = setTimeout(() => this.handleConnectionLoss(), this.reconnectDelay);
             } else {
                 this.notifyReconnectionFailed();
@@ -531,7 +531,7 @@ class WebRTCSignalingService {
         }
     }    // Recreate call for initiator
     async recreateCall() {
-        console.log('Recreating call as initiator, reusing existing call document');
+        // console.log('Recreating call as initiator, reusing existing call document');
 
         if (!this.callDoc || !this.lastCallId) {
             console.error('No existing call document to reuse!');
@@ -563,7 +563,7 @@ class WebRTCSignalingService {
             };
 
             // UPDATE existing call document with new offer
-            console.log('Updating existing call document with new offer');
+            // console.log('Updating existing call document with new offer');
             await updateDoc(this.callDoc, {
                 offer,
                 answer: null, // Clear old answer
@@ -575,7 +575,7 @@ class WebRTCSignalingService {
             this.unsubscribeCallDoc = onSnapshot(this.callDoc, (snapshot) => {
                 const data = snapshot.data();
                 if (!pc.currentRemoteDescription && data?.answer) {
-                    console.log('Received answer during reconnection');
+                    // console.log('Received answer during reconnection');
                     const answerDescription = new RTCSessionDescription(data.answer);
                     pc.setRemoteDescription(answerDescription);
                 }
@@ -588,7 +588,7 @@ class WebRTCSignalingService {
                         const candidate = new RTCIceCandidate(change.doc.data());
                         if (pc.signalingState !== 'closed') {
                             pc.addIceCandidate(candidate).catch(err => {
-                                console.log('Error adding ICE candidate:', err.message);
+                                // console.log('Error adding ICE candidate:', err.message);
                             });
                         }
                     }
@@ -596,7 +596,7 @@ class WebRTCSignalingService {
             });
 
             this.startHeartbeat();
-            console.log('Reconnection offer created and sent, using call ID:', this.lastCallId);
+            // console.log('Reconnection offer created and sent, using call ID:', this.lastCallId);
             return this.lastCallId;
 
         } catch (error) {
@@ -607,31 +607,31 @@ class WebRTCSignalingService {
 
     // Rejoin call for receiver
     async rejoinCall(callId) {
-        console.log('Rejoining call as receiver, callId:', callId);
+        // console.log('Rejoining call as receiver, callId:', callId);
         await this.joinCall(callId);
         return true;
     }
 
     // Clean up connection for reconnection (keep Firestore docs)
     async cleanupConnectionForReconnect() {
-        console.log('Cleaning up connection for reconnection');
+        // console.log('Cleaning up connection for reconnection');
 
         // CRITICAL: Unsubscribe from Firestore listeners BEFORE closing connections
         // This prevents ICE candidates from being added to a closed connection
         if (this.unsubscribeCallDoc) {
-            console.log('Unsubscribing from call document');
+            // console.log('Unsubscribing from call document');
             this.unsubscribeCallDoc();
             this.unsubscribeCallDoc = null;
         }
 
         if (this.unsubscribeAnswerCandidates) {
-            console.log('Unsubscribing from answer candidates');
+            // console.log('Unsubscribing from answer candidates');
             this.unsubscribeAnswerCandidates();
             this.unsubscribeAnswerCandidates = null;
         }
 
         if (this.unsubscribeOfferCandidates) {
-            console.log('Unsubscribing from offer candidates');
+            // console.log('Unsubscribing from offer candidates');
             this.unsubscribeOfferCandidates();
             this.unsubscribeOfferCandidates = null;
         }
@@ -641,7 +641,7 @@ class WebRTCSignalingService {
             try {
                 this.dataChannel.close();
             } catch (e) {
-                console.log('Error closing data channel:', e.message);
+                // console.log('Error closing data channel:', e.message);
             }
             this.dataChannel = null;
         }
@@ -651,7 +651,7 @@ class WebRTCSignalingService {
             try {
                 this.localConnection.close();
             } catch (e) {
-                console.log('Error closing peer connection:', e.message);
+                // console.log('Error closing peer connection:', e.message);
             }
             this.localConnection = null;
         }
@@ -706,7 +706,7 @@ class WebRTCSignalingService {
                     type: 'heartbeat',
                     timestamp: Date.now()
                 }));
-                console.log('Heartbeat sent');
+                // console.log('Heartbeat sent');
             }
         }, 30000);
 
@@ -720,7 +720,7 @@ class WebRTCSignalingService {
                 this.dataChannel &&
                 this.dataChannel.readyState === 'open' &&
                 !this.gracefulDisconnectReceived) {
-                console.log('Heartbeat timeout detected - no response for', timeSinceLastHeartbeat, 'ms');
+                // console.log('Heartbeat timeout detected - no response for', timeSinceLastHeartbeat, 'ms');
                 this.scheduleConnectionLossHandler();
             }
         }, 10000); // Check every 10 seconds
@@ -750,7 +750,7 @@ class WebRTCSignalingService {
 
     // Notify that reconnection failed
     notifyReconnectionFailed() {
-        console.log('All reconnection attempts failed');
+        // console.log('All reconnection attempts failed');
         if (this.onConnectionStateChange) {
             this.onConnectionStateChange('reconnection-failed');
         }
@@ -760,7 +760,7 @@ class WebRTCSignalingService {
     sendDisconnectNotification() {
         try {
             if (this.dataChannel && this.dataChannel.readyState === 'open') {
-                console.log('Sending graceful disconnect notification');
+                // console.log('Sending graceful disconnect notification');
                 this.dataChannel.send(JSON.stringify({
                     type: 'disconnect',
                     data: {
@@ -771,11 +771,11 @@ class WebRTCSignalingService {
                 }));
                 return true;
             } else {
-                console.log('Data channel not available for disconnect notification');
+                // console.log('Data channel not available for disconnect notification');
                 return false;
             }
         } catch (error) {
-            console.log('Could not send disconnect notification (channel likely closed):', error.message);
+            // console.log('Could not send disconnect notification (channel likely closed):', error.message);
             return false;
         }
     }
@@ -817,7 +817,7 @@ class WebRTCSignalingService {
                 type: 'requestGameStateSync',
                 timestamp: Date.now()
             }));
-            console.log('Requested game state sync from peer');
+            // console.log('Requested game state sync from peer');
             // Update heartbeat timestamp since we successfully sent data (connection is alive)
             this.lastHeartbeatReceived = Date.now();
         }
@@ -904,7 +904,7 @@ class WebRTCSignalingService {
             this.lastRole = null;
             this.gracefulDisconnectReceived = false;
 
-            console.log('WebRTC connection disconnected and cleaned up');
+            // console.log('WebRTC connection disconnected and cleaned up');
         } catch (error) {
             console.error('Error during disconnect:', error);
         }

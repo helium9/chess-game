@@ -26,7 +26,7 @@ const Navbar = ({ webRTC, gameState }) => {
     // Set up message handling
     useEffect(() => {
         setOnMessageReceived((message) => {
-            console.log('Received message:', message);
+            // console.log('Received message:', message);
             setMessages(prev => [...prev, {
                 type: 'received',
                 data: message,
@@ -40,7 +40,7 @@ const Navbar = ({ webRTC, gameState }) => {
         if (connectionState === 'disconnected' || connectionState === 'failed' || connectionState === 'closed') {
             // Reset UI state when connection is lost
             if (connectionState === 'disconnected') {
-                console.log('Peer disconnected - resetting UI');
+                // console.log('Peer disconnected - resetting UI');
                 // Add a disconnection message to the log
                 setMessages(prev => [...prev, {
                     type: 'system',
@@ -67,7 +67,7 @@ const Navbar = ({ webRTC, gameState }) => {
     const handleInitiateCall = async () => {
         try {
             const callId = await createCall();
-            console.log('Call created with ID:', callId);
+            // console.log('Call created with ID:', callId);
         } catch (err) {
             console.error('Failed to create call:', err);
             alert('Failed to create call: ' + err.message);
@@ -82,7 +82,7 @@ const Navbar = ({ webRTC, gameState }) => {
 
         try {
             await joinCall(receiverIdInput.trim());
-            console.log('Successfully joined call');
+            // console.log('Successfully joined call');
         } catch (err) {
             console.error('Failed to join call:', err);
             alert('Failed to join call: ' + err.message);
@@ -95,7 +95,7 @@ const Navbar = ({ webRTC, gameState }) => {
             setReceiverIdInput('');
             setMessages([]);
             setTestMessage('');
-            console.log('Disconnected successfully');
+            // console.log('Disconnected successfully');
         } catch (err) {
             console.error('Failed to disconnect:', err);
         }
@@ -104,7 +104,7 @@ const Navbar = ({ webRTC, gameState }) => {
     const handleCancelCall = async () => {
         try {
             await cancelCall();
-            console.log('Call cancelled successfully');
+            // console.log('Call cancelled successfully');
         } catch (err) {
             console.error('Failed to cancel call:', err);
         }
@@ -164,9 +164,9 @@ const Navbar = ({ webRTC, gameState }) => {
                         {/* Game Mode Indicator */}
                         <div className="flex items-center space-x-2">
                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${gameMode === 'singlePlayer' ? 'bg-gray-600 text-gray-100' :
-                                    gameMode === 'host' ? 'bg-blue-600 text-white' :
-                                        gameMode === 'guest' ? 'bg-green-600 text-white' :
-                                            'bg-gray-600 text-gray-100'
+                                gameMode === 'host' ? 'bg-blue-600 text-white' :
+                                    gameMode === 'guest' ? 'bg-green-600 text-white' :
+                                        'bg-gray-600 text-gray-100'
                                 }`}>
                                 {gameMode === 'singlePlayer' && '🎮 Single Player'}
                                 {gameMode === 'host' && '👑 Host (White)'}
@@ -175,8 +175,8 @@ const Navbar = ({ webRTC, gameState }) => {
 
                             {gameState && gameMode !== 'singlePlayer' && (
                                 <span className={`px-2 py-1 rounded text-xs font-medium ${gameState.currentTurn === playerColor
-                                        ? 'bg-green-500 text-white animate-pulse'
-                                        : 'bg-gray-500 text-gray-200'
+                                    ? 'bg-green-500 text-white animate-pulse'
+                                    : 'bg-gray-500 text-gray-200'
                                     }`}>
                                     {gameState.currentTurn === playerColor ? 'Your Turn' : 'Opponent\'s Turn'}
                                 </span>

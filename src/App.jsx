@@ -42,24 +42,24 @@ function App() {
       }
       timerStateRef.current.lastUpdate = now;
 
-      console.log('Timer updated:', {
-        whiteTime: timerStateRef.current.whiteTime,
-        blackTime: timerStateRef.current.blackTime,
-        elapsed,
-        movingColor
-      });
+      // console.log('Timer updated:', {
+      //   whiteTime: timerStateRef.current.whiteTime,
+      //   blackTime: timerStateRef.current.blackTime,
+      //   elapsed,
+      //   movingColor
+      // });
     }
 
     setGameState(newGameState);
 
     // Send to peer if connected
     if (webRTC.isConnected) {
-      console.log('Sending game state to peer:', {
-        type: 'gameStateSync',
-        gameState: newGameState,
-        timerState: { ...timerStateRef.current },
-        timestamp: Date.now()
-      });
+      // console.log('Sending game state to peer:', {
+      //   type: 'gameStateSync',
+      //   gameState: newGameState,
+      //   timerState: { ...timerStateRef.current },
+      //   timestamp: Date.now()
+      // });
       webRTC.sendGameState({
         type: 'gameStateSync',
         gameState: newGameState,
@@ -71,7 +71,7 @@ function App() {
 
   // Handle incoming game state from peer with useCallback to prevent stale closures
   const handleMessage = useCallback((message) => {
-    console.log('Received message from peer:', message);
+    // console.log('Received message from peer:', message);
 
     // Handle the double-wrapped message structure from WebRTC service
     if (message.type === 'gameState' && message.data) {
@@ -80,7 +80,7 @@ function App() {
       if (innerMessage.type === 'gameStateSync') {
         console.log('Updating game state from peer:', innerMessage.gameState);
         setGameState(prevState => {
-          console.log('State update - from:', prevState, 'to:', innerMessage.gameState);
+          // console.log('State update - from:', prevState, 'to:', innerMessage.gameState);
           return innerMessage.gameState;
         });
 
@@ -90,13 +90,13 @@ function App() {
           console.log('Timer state updated from peer:', innerMessage.timerState);
         }
       } else if (innerMessage.type === 'playerAssignment') {
-        console.log('Received initial game state from host:', innerMessage.initialGameState);
+        // console.log('Received initial game state from host:', innerMessage.initialGameState);
         setGameState(innerMessage.initialGameState);
       }
     }
     // Handle game state sync request
     else if (message.type === 'requestGameStateSync') {
-      console.log('Peer requested current game state, sending...');
+      // console.log('Peer requested current game state, sending...');
 
       // Prevent rapid duplicate sync requests (debounce to max once per 2 seconds)
       const now = Date.now();
@@ -104,7 +104,7 @@ function App() {
 
       // Use setGameState to get the current state and send it
       setGameState(currentState => {
-        console.log('Sending current game state in response to request:', currentState);
+        // console.log('Sending current game state in response to request:', currentState);
         webRTC.sendGameState({
           type: 'gameStateSync',
           gameState: currentState,
@@ -123,19 +123,19 @@ function App() {
     else if (message.type === 'disconnect' && message.data) {
       const innerMessage = message.data;
       if (innerMessage.type === 'gracefulDisconnect') {
-        console.log('Received graceful disconnect notification');
+        // console.log('Received graceful disconnect notification');
         webRTC.setGracefulDisconnectFlag && webRTC.setGracefulDisconnectFlag(true);
       }
     }
     // Legacy handling for direct messages (fallback)
     else if (message.type === 'gameStateSync') {
-      console.log('Updating game state from peer (direct):', message.gameState);
+      // console.log('Updating game state from peer (direct):', message.gameState);
       setGameState(prevState => {
-        console.log('State update - from:', prevState, 'to:', message.gameState);
+        // console.log('State update - from:', prevState, 'to:', message.gameState);
         return message.gameState;
       });
     } else if (message.type === 'playerAssignment') {
-      console.log('Received initial game state from host (direct):', message.initialGameState);
+      // console.log('Received initial game state from host (direct):', message.initialGameState);
       setGameState(message.initialGameState);
     }
   }, []);
@@ -151,7 +151,7 @@ function App() {
   useEffect(() => {
     if (webRTC.setOnDataChannelOpen && webRTC.gameMode === 'host') {
       webRTC.setOnDataChannelOpen(() => {
-        console.log('Data channel ready - sending initial game state to guest:', gameState);
+        // console.log('Data channel ready - sending initial game state to guest:', gameState);
         webRTC.sendGameState({
           type: 'playerAssignment',
           hostColor: COLORS.WHITE,
@@ -165,7 +165,7 @@ function App() {
   // Reset game state when returning to single player
   useEffect(() => {
     if (webRTC.gameMode === 'singlePlayer') {
-      console.log('Returning to single player - resetting game state');
+      // console.log('Returning to single player - resetting game state');
       setGameState(createInitialGameState());
       // Reset timer state as well
       timerStateRef.current = {
@@ -181,7 +181,7 @@ function App() {
     if (webRTC.isConnected && !webRTC.isReconnecting && webRTC.gameMode === 'guest') {
       // Small delay to ensure connection is stable after reconnection
       setTimeout(() => {
-        console.log('Reconnected as guest - requesting game state sync');
+        // console.log('Reconnected as guest - requesting game state sync');
         webRTC.requestGameStateSync();
       }, 1000);
     }
@@ -193,7 +193,7 @@ function App() {
     if (webRTC.isConnected && !webRTC.isReconnecting) {
       // Update lastUpdate to current time to prevent elapsed time from including reconnection period
       timerStateRef.current.lastUpdate = Date.now();
-      console.log('Reconnection completed - reset timer lastUpdate to prevent time deduction bug');
+      // console.log('Reconnection completed - reset timer lastUpdate to prevent time deduction bug');
     }
   }, [webRTC.isConnected, webRTC.isReconnecting]);
 

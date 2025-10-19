@@ -231,7 +231,7 @@ export const wouldBeInCheck = (board, fromRow, fromCol, toRow, toCol, color) => 
     return isInCheck(newBoard, color);
 };
 
-// Generate hybrid piece moves (union of component moves)
+// Generate hybrid piece moves (union of component moves) i.e. after piece is combined.
 const generateHybridMoves = (board, row, col) => {
     const hybridPiece = board[row][col];
     const components = getHybridComponents(hybridPiece);
@@ -269,6 +269,6 @@ const generateHybridMoves = (board, row, col) => {
             }
         }
     }
-
+    // console.log("Hybrid: ", allMoves);
     return allMoves;
 };

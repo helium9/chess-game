@@ -9,6 +9,7 @@ import {
 } from "../utils/gameState.js";
 import { COLORS, getPieceColor } from "../utils/constants.js";
 import { announceTurn, capitalizeColor } from "./helpers/messageHelpers.js";
+import { getAllLegalMoves } from "../ai/alphaBeta.js";
 import { useCombineMode } from "./hooks/useCombineMode.js";
 import { useDeCombineMode } from "./hooks/useDeCombineMode.js";
 import { usePromotion } from "./hooks/usePromotion.js";
@@ -53,7 +54,7 @@ const ChessBoard = ({
     }
   };
 
-  console.log('ChessBoard - GameMode:', gameMode, 'PlayerColor:', playerColor, 'GameState:', gameState);
+  // console.log('ChessBoard - GameMode:', gameMode, 'PlayerColor:', playerColor, 'GameState:', gameState);
   const [message, setMessage] = useState("White to move");
 
   // Determine if board should be flipped (Black player in multiplayer)
@@ -71,7 +72,7 @@ const ChessBoard = ({
     const isMyTurn = gameState.currentTurn === playerColor;
     const isMyPiece = isCurrentPlayersPiece(piece, playerColor);
 
-    console.log(`Move validation - Piece: ${piece}, PlayerColor: ${playerColor}, CurrentTurn: ${gameState.currentTurn}, IsMyTurn: ${isMyTurn}, IsMyPiece: ${isMyPiece}`);
+    // console.log(`Move validation - Piece: ${piece}, PlayerColor: ${playerColor}, CurrentTurn: ${gameState.currentTurn}, IsMyTurn: ${isMyTurn}, IsMyPiece: ${isMyPiece}`);
 
     return isMyTurn && isMyPiece;
   };
@@ -89,6 +90,21 @@ const ChessBoard = ({
     isLegalMoveSquare,
     clearSelection,
   } = useMoveHandler(gameState, updateGameState, setMessage, openPromotionDialog);
+
+  // useEffect(() => {
+  //   console.log('Per-piece legal moves (useMoveHandler):', legalMoves);
+  // }, [legalMoves]);
+
+  // Log all legal moves from AI module
+  useEffect(() => {
+    const allLegalMoves = getAllLegalMoves(
+      gameState.board,
+      gameState.currentTurn,
+      gameState.castlingRights
+    );
+    console.log('All legal moves (getAllLegalMoves):', allLegalMoves);
+    console.log('Total legal moves count:', allLegalMoves.length);
+  }, [gameState.board, gameState.currentTurn, gameState.castlingRights]);
 
   // Combine mode hook
   const {
@@ -139,7 +155,7 @@ const ChessBoard = ({
 
     // For piece selection, check if we can move this piece
     if (piece && selectedSquare === null && !canMakeMove(piece, [row, col])) {
-      console.log(`Cannot select piece ${piece} - not your piece or not your turn`);
+      // console.log(`Cannot select piece ${piece} - not your piece or not your turn`);
       setMessage(`It's ${gameState.currentTurn}'s turn. You can only move ${playerColor || 'any'} pieces.`);
       return;
     }
