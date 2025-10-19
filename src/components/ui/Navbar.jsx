@@ -172,17 +172,17 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty }) => {
   return (
     <nav className="bg-slate-800 shadow-lg border-b border-slate-600">
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
-        <div className="flex flex-col justify-center items-center py-3 sm:py-0 sm:h-16 gap-3 sm:gap-0 sm:flex-row sm:justify-between">
+        <div className="flex flex-col justify-center items-center py-3 lg:py-0 lg:h-16 gap-3 lg:gap-0 lg:flex-row lg:justify-between">
           {/* Logo/Title */}
-          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 w-full sm:w-auto">
-            <h1 className="text-lg sm:text-xl font-bold text-white text-center">
+          <div className="flex flex-col lg:flex-row items-center gap-2 lg:gap-4 w-full lg:w-auto">
+            <h1 className="text-lg lg:text-xl font-bold text-white text-center">
               Chess Game
             </h1>
 
             {/* Game Mode Indicator */}
             <div className="flex flex-row items-center gap-2 justify-center">
               <span
-                className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                className={`px-2 lg:px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
                   gameMode === "singlePlayer"
                     ? "bg-gray-600 text-gray-100"
                     : gameMode === "vsEngine"
@@ -225,13 +225,13 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty }) => {
           </div>
 
           {/* P2P Connection Controls */}
-          <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-2 w-full sm:w-auto">
+          <div className="flex flex-col lg:flex-row flex-wrap items-center justify-center gap-2 w-full lg:w-auto">
             {!isConnected && !isConnecting && (
               <>
                 {/* Engine Mode Button */}
                 <button
                   onClick={onStartEngineGame}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-1.5 text-xs sm:text-sm whitespace-nowrap"
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 lg:px-4 lg:py-2 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-1.5 text-xs lg:text-sm whitespace-nowrap w-full sm:w-auto"
                   title="Play against AI"
                 >
                   <span>🤖</span>
@@ -241,23 +241,23 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty }) => {
                 {/* Initiate Call Button */}
                 <button
                   onClick={handleInitiateCall}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium transition-colors duration-200 text-xs sm:text-sm whitespace-nowrap"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 lg:px-4 lg:py-2 rounded-lg font-medium transition-colors duration-200 text-xs lg:text-sm whitespace-nowrap w-full sm:w-auto"
                 >
                   Start Game
                 </button>
 
                 {/* Join Game Section */}
-                <div className="flex items-center gap-2 w-full sm:w-auto max-w-[200px] sm:max-w-none">
+                <div className="flex items-center gap-2 w-full lg:w-auto">
                   <input
                     type="text"
                     placeholder="Game ID"
                     value={receiverIdInput}
                     onChange={(e) => setReceiverIdInput(e.target.value)}
-                    className="bg-slate-700 text-white placeholder-slate-400 px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs sm:text-sm flex-1 min-w-0"
+                    className="bg-slate-700 text-white placeholder-slate-400 px-2 py-1.5 lg:px-3 lg:py-2 rounded-lg border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs lg:text-sm flex-1 min-w-0"
                   />
                   <button
                     onClick={handleAcceptCall}
-                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium transition-colors duration-200 text-xs sm:text-sm whitespace-nowrap flex-shrink-0"
+                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 lg:px-4 lg:py-2 rounded-lg font-medium transition-colors duration-200 text-xs lg:text-sm whitespace-nowrap flex-shrink-0"
                   >
                     Join
                   </button>
@@ -267,13 +267,13 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty }) => {
 
             {/* Waiting for Connection */}
             {isConnecting && !isConnected && (
-              <div className="flex flex-col items-center gap-2 w-full sm:w-auto sm:flex-row sm:gap-4">
-                <div className="text-white text-center sm:text-left w-full sm:w-auto">
-                  <span className="text-xs sm:text-sm text-slate-300">
+              <div className="flex flex-col items-center gap-2 w-full lg:w-auto lg:flex-row lg:gap-4">
+                <div className="text-white text-center lg:text-left w-full lg:w-auto">
+                  <span className="text-xs lg:text-sm text-slate-300">
                     Game ID:
                   </span>
-                  <div className="flex items-center justify-center sm:justify-start space-x-2 mt-1">
-                    <code className="bg-slate-700 px-2 py-1 rounded text-blue-300 font-mono text-xs sm:text-sm overflow-hidden text-ellipsis">
+                  <div className="flex items-center justify-center lg:justify-start space-x-2 mt-1">
+                    <code className="bg-slate-700 px-2 py-1 rounded text-blue-300 font-mono text-xs lg:text-sm overflow-hidden text-ellipsis">
                       {connectionId}
                     </code>
                     <button
@@ -285,8 +285,8 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty }) => {
                   </div>
                 </div>
                 <div className="flex items-center text-yellow-400">
-                  <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-yellow-400 mr-2"></div>
-                  <span className="text-xs sm:text-sm">Waiting...</span>
+                  <div className="animate-spin rounded-full h-3 w-3 lg:h-4 lg:w-4 border-b-2 border-yellow-400 mr-2"></div>
+                  <span className="text-xs lg:text-sm">Waiting...</span>
                 </div>
                 <button
                   onClick={handleCancelCall}
@@ -312,20 +312,20 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty }) => {
 
             {/* Connected State */}
             {isConnected && (
-              <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 w-full sm:w-auto">
+              <div className="flex flex-col lg:flex-row items-center gap-2 lg:gap-4 w-full lg:w-auto">
                 <div className="flex items-center text-green-400">
                   <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
-                  <span className="text-xs sm:text-sm">Connected</span>
+                  <span className="text-xs lg:text-sm">Connected</span>
                 </div>
                 <button
                   onClick={() => setShowDebugPanel(!showDebugPanel)}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 sm:px-3 sm:py-2 rounded-lg font-medium transition-colors duration-200 text-xs sm:text-sm w-full sm:w-auto"
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 lg:px-3 lg:py-2 rounded-lg font-medium transition-colors duration-200 text-xs lg:text-sm w-full sm:w-auto"
                 >
                   Debug
                 </button>
                 <button
                   onClick={handleDisconnect}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 sm:px-4 sm:py-2 rounded-lg font-medium transition-colors duration-200 text-xs sm:text-sm w-full sm:w-auto"
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 lg:px-4 lg:py-2 rounded-lg font-medium transition-colors duration-200 text-xs lg:text-sm w-full sm:w-auto"
                 >
                   Disconnect
                 </button>
