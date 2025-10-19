@@ -253,6 +253,15 @@ const useWebRTC = () => {
         }
     }, [isConnected]);
 
+    // Expose setters for engine mode (non-WebRTC game modes)
+    const updateGameMode = useCallback((mode) => {
+        setGameMode(mode);
+    }, []);
+
+    const updatePlayerColor = useCallback((color) => {
+        setPlayerColor(color);
+    }, []);
+
     return {
         // Connection State
         isConnecting,
@@ -265,6 +274,8 @@ const useWebRTC = () => {
         // Game State
         gameMode,
         playerColor,
+        updateGameMode,      // For non-WebRTC modes like vsEngine
+        updatePlayerColor,   // For non-WebRTC modes like vsEngine
 
         // Actions
         createCall,

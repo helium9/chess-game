@@ -12,8 +12,11 @@ const Timer = React.memo(({
     const [displayTime, setDisplayTime] = useState(180000); // 3 minutes in ms
 
     useEffect(() => {
-        // Don't run timer logic if in single player, not connected, or reconnecting
-        if (gameMode === 'singlePlayer' || !isConnected || isReconnecting) {
+        // Don't run timer logic if in single player mode, not connected (for multiplayer), or reconnecting
+        // Timer is visible in vsEngine mode and multiplayer modes
+        if (gameMode === 'singlePlayer' ||
+            (gameMode !== 'vsEngine' && !isConnected) ||
+            isReconnecting) {
             // Freeze timer - read current value from ref
             const timeToDisplay = color === COLORS.WHITE
                 ? timerStateRef.current.whiteTime
@@ -62,7 +65,8 @@ const Timer = React.memo(({
         return `${minutes}:${seconds.toString().padStart(2, '0')}.${deciseconds}`;
     };
 
-    const isActive = currentTurn === color && gameMode !== 'singlePlayer' && isConnected;
+    const isActive = currentTurn === color &&
+        (gameMode === 'vsEngine' || (gameMode !== 'singlePlayer' && isConnected));
     const isLowTime = displayTime < 30000; // Less than 30 seconds
     const isCriticalTime = displayTime < 10000; // Less than 10 seconds
 

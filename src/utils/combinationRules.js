@@ -184,7 +184,7 @@ export const findEligiblePairs = (board, currentTurn) => {
             }
         }
     }
-    console.log("Combination pairs:", pairs);
+    // console.log("Combination pairs:", pairs);
     return pairs;
 };
 

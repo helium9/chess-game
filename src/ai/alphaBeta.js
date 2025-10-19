@@ -5,7 +5,7 @@ import { evaluatePosition } from './evaluator.js';
 import { orderMoves } from './moveOrdering.js';
 import { CHECKMATE_SCORE } from './constants.js';
 import { COLORS, getPieceColor, isHybridPiece, getBasePieceType } from '../utils/constants.js';
-import { calculateLegalMoves, isInCheck } from '../utils/moveCalculator.js';
+import { calculateLegalMoves, isInCheck, wouldBeInCheck } from '../utils/moveCalculator.js';
 import { makeMove, copyBoard, executeCombination } from '../utils/gameState.js';
 import { findEligiblePairs, canReachForCombine, getHigherValuePiece, createHybridPiece } from '../utils/combinationRules.js';
 import { canDeCombine, findSpawnSquares, computeLegalAssignments, getHybridComponents } from '../utils/deCombinationRules.js';
@@ -144,6 +144,11 @@ export const getAllLegalMoves = (board, color, castlingRights) => {
             const moves = calculateLegalMoves(board, row, col, color);
 
             for (const move of moves) {
+                // CRITICAL: Filter out moves that would leave king in check
+                if (wouldBeInCheck(board, row, col, move.row, move.col, color)) {
+                    continue; // Skip this move - it's illegal
+                }
+
                 const isPawn = piece.toLowerCase() === 'p';
                 const promotionRank = color === COLORS.WHITE ? 0 : 7;
 
@@ -294,6 +299,12 @@ export const getAllLegalMoves = (board, color, castlingRights) => {
 
                 if (assignmentResult.legal.length > 0) {
                     const chosen = assignmentResult.chosen;
+
+                    // Check if decombining to this spawn square would leave king in check
+                    // Treat it like the hybrid piece is "moving" to the spawn square
+                    if (wouldBeInCheck(board, row, col, spawnSquare.row, spawnSquare.col, color)) {
+                        continue; // Skip this decombination - would leave king in check
+                    }
 
                     allMoves.push({
                         from: { row, col },

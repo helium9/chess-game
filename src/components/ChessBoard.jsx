@@ -32,7 +32,9 @@ const ChessBoard = ({
   playerColor = null,
   isConnected = false,
   timerStateRef = null,
-  isReconnecting = false
+  isReconnecting = false,
+  isAiThinking = false,
+  onResetToSinglePlayer = null
 }) => {
   // Use external game state if provided, otherwise use internal state
   const [internalGameState, setInternalGameState] = useState(createInitialGameState());
@@ -68,7 +70,15 @@ const ChessBoard = ({
 
     if (!piece) return false;
 
-    // Use existing utility functions
+    // Engine mode: only WHITE (player) can move, and not during AI thinking
+    if (gameMode === 'vsEngine') {
+      const pieceColor = getPieceColor(piece);
+      return pieceColor === COLORS.WHITE &&
+        gameState.currentTurn === COLORS.WHITE &&
+        !isAiThinking;
+    }
+
+    // Multiplayer modes (host/guest): use existing utility functions
     const isMyTurn = gameState.currentTurn === playerColor;
     const isMyPiece = isCurrentPlayersPiece(piece, playerColor);
 
@@ -96,15 +106,15 @@ const ChessBoard = ({
   // }, [legalMoves]);
 
   // Log all legal moves from AI module
-  useEffect(() => {
-    const allLegalMoves = getAllLegalMoves(
-      gameState.board,
-      gameState.currentTurn,
-      gameState.castlingRights
-    );
-    console.log('All legal moves (getAllLegalMoves):', allLegalMoves);
-    console.log('Total legal moves count:', allLegalMoves.length);
-  }, [gameState.board, gameState.currentTurn, gameState.castlingRights]);
+  // useEffect(() => {
+  //   const allLegalMoves = getAllLegalMoves(
+  //     gameState.board,
+  //     gameState.currentTurn,
+  //     gameState.castlingRights
+  //   );
+  //   console.log('All legal moves (getAllLegalMoves):', allLegalMoves);
+  //   console.log('Total legal moves count:', allLegalMoves.length);
+  // }, [gameState.board, gameState.currentTurn, gameState.castlingRights]);
 
   // Combine mode hook
   const {
@@ -190,9 +200,9 @@ const ChessBoard = ({
   };
 
   const handleUndo = () => {
-    // Disable undo/redo in multiplayer mode
+    // Disable undo/redo in multiplayer mode and engine mode (TODO: implement undo for engine mode)
     if (gameMode !== 'singlePlayer') {
-      setMessage("Undo/Redo is disabled in multiplayer mode");
+      setMessage(`Undo/Redo is disabled in ${gameMode === 'vsEngine' ? 'engine' : 'multiplayer'} mode`);
       return;
     }
 
@@ -205,9 +215,9 @@ const ChessBoard = ({
   };
 
   const handleRedo = () => {
-    // Disable undo/redo in multiplayer mode
+    // Disable undo/redo in multiplayer mode and engine mode (TODO: implement redo for engine mode)
     if (gameMode !== 'singlePlayer') {
-      setMessage("Undo/Redo is disabled in multiplayer mode");
+      setMessage(`Undo/Redo is disabled in ${gameMode === 'vsEngine' ? 'engine' : 'multiplayer'} mode`);
       return;
     }
 
@@ -220,12 +230,19 @@ const ChessBoard = ({
   };
 
   const resetGame = () => {
-    // In multiplayer, only allow reset if you're the host or in single player
-    if (gameMode === 'guest') {
-      setMessage("Only the host can reset the game");
+    // If in engine mode, reset to single player mode
+    if (gameMode === 'vsEngine') {
+      if (onResetToSinglePlayer) {
+        onResetToSinglePlayer();
+      }
+      clearSelection();
+      exitCombineMode();
+      exitDeCombineMode();
+      setMessage("Game reset - Single player mode");
       return;
     }
 
+    // Standard single player reset
     const newState = createInitialGameState();
     updateGameState(newState);
     clearSelection();
@@ -262,7 +279,7 @@ const ChessBoard = ({
 
           <div className="flex flex-col items-center gap-4">
             {/* Timer for top player (Black in normal view, White in flipped view) */}
-            {gameMode !== 'singlePlayer' && isConnected && timerStateRef && (
+            {(gameMode === 'vsEngine' || (gameMode !== 'singlePlayer' && isConnected)) && timerStateRef && (
               <Timer
                 timerStateRef={timerStateRef}
                 color={isBoardFlipped ? COLORS.WHITE : COLORS.BLACK}
@@ -348,7 +365,7 @@ const ChessBoard = ({
             </div>
 
             {/* Timer for bottom player (White in normal view, Black in flipped view) */}
-            {gameMode !== 'singlePlayer' && isConnected && timerStateRef && (
+            {(gameMode === 'vsEngine' || (gameMode !== 'singlePlayer' && isConnected)) && timerStateRef && (
               <Timer
                 timerStateRef={timerStateRef}
                 color={isBoardFlipped ? COLORS.BLACK : COLORS.WHITE}
@@ -381,6 +398,7 @@ const ChessBoard = ({
           canRedoMove={canRedo(gameState)}
           hasEligiblePairs={eligiblePairs.length > 0}
           hasEligibleHybrids={eligibleHybrids.length > 0}
+          gameMode={gameMode}
         />
 
         {deCombine.isConfirmOpen &&

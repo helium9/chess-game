@@ -21,11 +21,11 @@ export const PIECE_VALUES = {
     q: 900,   // Queen
     k: 0,     // King (infinite value, but 0 for evaluation)
 
-    // Hybrid pieces - TODO: Fill in values
-    rb: 930,    // Rook-Bishop 
-    rn: 850,    // Rook-Knight 
-    bn: 700,    // Bishop-Knight 
-    qn: 1400     // Queen-Knight
+    // Hybrid pieces
+    rb: 900,    // Rook-Bishop 
+    rn: 830,    // Rook-Knight 
+    bn: 660,    // Bishop-Knight 
+    qn: 1250     // Queen-Knight
 };
 
 // ============================================

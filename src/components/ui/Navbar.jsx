@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const Navbar = ({ webRTC, gameState }) => {
+const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty }) => {
     const [receiverIdInput, setReceiverIdInput] = useState('');
     const [messages, setMessages] = useState([]);
     const [testMessage, setTestMessage] = useState('');
@@ -164,21 +164,26 @@ const Navbar = ({ webRTC, gameState }) => {
                         {/* Game Mode Indicator */}
                         <div className="flex items-center space-x-2">
                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${gameMode === 'singlePlayer' ? 'bg-gray-600 text-gray-100' :
-                                gameMode === 'host' ? 'bg-blue-600 text-white' :
-                                    gameMode === 'guest' ? 'bg-green-600 text-white' :
-                                        'bg-gray-600 text-gray-100'
+                                    gameMode === 'vsEngine' ? 'bg-purple-600 text-white' :
+                                        gameMode === 'host' ? 'bg-blue-600 text-white' :
+                                            gameMode === 'guest' ? 'bg-green-600 text-white' :
+                                                'bg-gray-600 text-gray-100'
                                 }`}>
                                 {gameMode === 'singlePlayer' && '🎮 Single Player'}
+                                {gameMode === 'vsEngine' && `🤖 vs Engine (${aiDifficulty?.name || 'Medium'})`}
                                 {gameMode === 'host' && '👑 Host (White)'}
                                 {gameMode === 'guest' && '🎯 Guest (Black)'}
                             </span>
 
                             {gameState && gameMode !== 'singlePlayer' && (
-                                <span className={`px-2 py-1 rounded text-xs font-medium ${gameState.currentTurn === playerColor
-                                    ? 'bg-green-500 text-white animate-pulse'
-                                    : 'bg-gray-500 text-gray-200'
+                                <span className={`px-2 py-1 rounded text-xs font-medium ${gameMode === 'vsEngine'
+                                        ? (gameState.currentTurn === 'white' ? 'bg-green-500 text-white animate-pulse' : 'bg-gray-500 text-gray-200')
+                                        : (gameState.currentTurn === playerColor ? 'bg-green-500 text-white animate-pulse' : 'bg-gray-500 text-gray-200')
                                     }`}>
-                                    {gameState.currentTurn === playerColor ? 'Your Turn' : 'Opponent\'s Turn'}
+                                    {gameMode === 'vsEngine'
+                                        ? (gameState.currentTurn === 'white' ? 'Your Turn' : 'AI Thinking...')
+                                        : (gameState.currentTurn === playerColor ? 'Your Turn' : 'Opponent\'s Turn')
+                                    }
                                 </span>
                             )}
                         </div>
@@ -188,6 +193,16 @@ const Navbar = ({ webRTC, gameState }) => {
                     <div className="flex items-center space-x-4">
                         {!isConnected && !isConnecting && (
                             <>
+                                {/* Engine Mode Button */}
+                                <button
+                                    onClick={onStartEngineGame}
+                                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
+                                    title="Play against AI"
+                                >
+                                    <span>🤖</span>
+                                    <span>Play vs Engine</span>
+                                </button>
+
                                 {/* Initiate Call Button */}
                                 <button
                                     onClick={handleInitiateCall}
