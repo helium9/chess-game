@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from "react";
 import ChessBoard from "./components/ChessBoard.jsx";
 import Navbar from "./components/ui/Navbar.jsx";
 import useWebRTC from "./hooks/useWebRTC.js";
@@ -21,30 +21,40 @@ function App() {
   const timerStateRef = useRef({
     whiteTime: 180000, // 3 minutes in ms
     blackTime: 180000,
-    lastUpdate: Date.now()
+    lastUpdate: Date.now(),
   });
 
   // Function to handle game state changes from ChessBoard
   const handleGameStateChange = (newGameState) => {
-    console.log('Game state changed:', {
+    console.log("Game state changed:", {
       oldState: gameState,
       newState: newGameState,
       currentTurn: newGameState.currentTurn,
       gameMode: webRTC.gameMode,
-      playerColor: webRTC.playerColor
+      playerColor: webRTC.playerColor,
     });
 
     // Update timer state when a move is made (only in multiplayer and vsEngine mode)
-    if ((webRTC.gameMode === 'vsEngine' || (webRTC.gameMode !== 'singlePlayer' && webRTC.isConnected))) {
+    if (
+      webRTC.gameMode === "vsEngine" ||
+      (webRTC.gameMode !== "singlePlayer" && webRTC.isConnected)
+    ) {
       const now = Date.now();
       const elapsed = now - timerStateRef.current.lastUpdate;
 
       // Deduct time from the player who just moved (opposite of current turn)
-      const movingColor = newGameState.currentTurn === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE;
+      const movingColor =
+        newGameState.currentTurn === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE;
       if (movingColor === COLORS.WHITE) {
-        timerStateRef.current.whiteTime = Math.max(0, timerStateRef.current.whiteTime - elapsed);
+        timerStateRef.current.whiteTime = Math.max(
+          0,
+          timerStateRef.current.whiteTime - elapsed
+        );
       } else {
-        timerStateRef.current.blackTime = Math.max(0, timerStateRef.current.blackTime - elapsed);
+        timerStateRef.current.blackTime = Math.max(
+          0,
+          timerStateRef.current.blackTime - elapsed
+        );
       }
       timerStateRef.current.lastUpdate = now;
 
@@ -59,7 +69,11 @@ function App() {
     setGameState(newGameState);
 
     // Check if it's AI's turn (engine mode + BLACK to move)
-    if (webRTC.gameMode === 'vsEngine' && newGameState.currentTurn === COLORS.BLACK && !isAiThinking) {
+    if (
+      webRTC.gameMode === "vsEngine" &&
+      newGameState.currentTurn === COLORS.BLACK &&
+      !isAiThinking
+    ) {
       makeAiMove(newGameState);
     }
 
@@ -72,10 +86,10 @@ function App() {
       //   timestamp: Date.now()
       // });
       webRTC.sendGameState({
-        type: 'gameStateSync',
+        type: "gameStateSync",
         gameState: newGameState,
         timerState: { ...timerStateRef.current },
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     }
   };
@@ -85,7 +99,7 @@ function App() {
     setIsAiThinking(true);
 
     try {
-      console.log('AI is thinking...');
+      console.log("AI is thinking...");
 
       // Wrap in Promise to allow UI updates during calculation
       const bestMove = await new Promise((resolve) => {
@@ -95,20 +109,29 @@ function App() {
       });
 
       if (bestMove) {
-        console.log('AI found best move:', bestMove);
+        console.log("AI found best move:", bestMove);
 
         // Import necessary functions
-        const { copyBoard, makeMove: makeBoardMove, executeCombination: executeCombinationOnBoard, switchTurn, addCapturedPiece } = await import('./utils/gameState.js');
-        const { executeCastleMove } = await import('./components/helpers/castlingLogic.js');
+        const {
+          copyBoard,
+          makeMove: makeBoardMove,
+          executeCombination: executeCombinationOnBoard,
+          switchTurn,
+          addCapturedPiece,
+        } = await import("./utils/gameState.js");
+        const { executeCastleMove } = await import(
+          "./components/helpers/castlingLogic.js"
+        );
 
         // Create new game state
         let newBoard;
         let capturedPiece = null;
 
         switch (bestMove.type) {
-          case 'normal':
+          case "normal":
             // Check for capture
-            capturedPiece = currentGameState.board[bestMove.to.row][bestMove.to.col];
+            capturedPiece =
+              currentGameState.board[bestMove.to.row][bestMove.to.col];
             newBoard = makeBoardMove(
               currentGameState.board,
               bestMove.from.row,
@@ -118,22 +141,23 @@ function App() {
             );
             break;
 
-          case 'castling':
+          case "castling":
             newBoard = executeCastleMove(
               currentGameState.board,
               currentGameState.currentTurn,
-              bestMove.side === 'kingside'
+              bestMove.side === "kingside"
             );
             break;
 
-          case 'promotion':
-            capturedPiece = currentGameState.board[bestMove.to.row][bestMove.to.col];
+          case "promotion":
+            capturedPiece =
+              currentGameState.board[bestMove.to.row][bestMove.to.col];
             newBoard = copyBoard(currentGameState.board);
             newBoard[bestMove.to.row][bestMove.to.col] = bestMove.promoteTo;
-            newBoard[bestMove.from.row][bestMove.from.col] = '';
+            newBoard[bestMove.from.row][bestMove.from.col] = "";
             break;
 
-          case 'combine': {
+          case "combine": {
             const { piece1, piece2 } = bestMove.pieces;
             const result = executeCombinationOnBoard(
               currentGameState.board,
@@ -141,40 +165,46 @@ function App() {
               piece1.col,
               piece2.row,
               piece2.col,
-              piece1.row,  // anchor row
-              piece1.col   // anchor col
+              piece1.row, // anchor row
+              piece1.col // anchor col
             );
             newBoard = result ? result.board : currentGameState.board;
             break;
           }
 
-          case 'decombine':
+          case "decombine":
             newBoard = copyBoard(currentGameState.board);
-            newBoard[bestMove.from.row][bestMove.from.col] = bestMove.assignment.staying;
-            newBoard[bestMove.to.row][bestMove.to.col] = bestMove.assignment.spawning;
+            newBoard[bestMove.from.row][bestMove.from.col] =
+              bestMove.assignment.staying;
+            newBoard[bestMove.to.row][bestMove.to.col] =
+              bestMove.assignment.spawning;
             break;
 
           default:
-            console.error('Unknown move type:', bestMove.type);
+            console.error("Unknown move type:", bestMove.type);
             newBoard = currentGameState.board;
         }
 
         // Update captured pieces if any
         let newCapturedPieces = { ...currentGameState.capturedPieces };
-        if (capturedPiece && capturedPiece !== '') {
-          newCapturedPieces = addCapturedPiece(currentGameState.capturedPieces, capturedPiece);
+        if (capturedPiece && capturedPiece !== "") {
+          newCapturedPieces = addCapturedPiece(
+            currentGameState.capturedPieces,
+            capturedPiece
+          );
         }
 
         // Update castling rights (simplified - you might need more logic here)
         let newCastlingRights = { ...currentGameState.castlingRights };
-        const piece = currentGameState.board[bestMove.from.row][bestMove.from.col];
+        const piece =
+          currentGameState.board[bestMove.from.row][bestMove.from.col];
 
         // King moves - lose all castling rights
-        if (piece && piece.toLowerCase() === 'k') {
+        if (piece && piece.toLowerCase() === "k") {
           if (currentGameState.currentTurn === COLORS.BLACK) {
             newCastlingRights = {
               ...newCastlingRights,
-              black: { kingSide: false, queenSide: false }
+              black: { kingSide: false, queenSide: false },
             };
           }
         }
@@ -187,22 +217,25 @@ function App() {
           capturedPieces: newCapturedPieces,
           castlingRights: newCastlingRights,
           moveHistory: [...currentGameState.moveHistory, bestMove],
-          enPassantTarget: null // Reset en passant
+          enPassantTarget: null, // Reset en passant
         };
 
         // Update timer for BLACK (AI)
         const now = Date.now();
         const elapsed = now - timerStateRef.current.lastUpdate;
-        timerStateRef.current.blackTime = Math.max(0, timerStateRef.current.blackTime - elapsed);
+        timerStateRef.current.blackTime = Math.max(
+          0,
+          timerStateRef.current.blackTime - elapsed
+        );
         timerStateRef.current.lastUpdate = now;
 
         // Update game state (this won't trigger another AI move since turn switches to WHITE)
         setGameState(newGameState);
       } else {
-        console.log('AI has no legal moves (game over)');
+        console.log("AI has no legal moves (game over)");
       }
     } catch (error) {
-      console.error('Error during AI move calculation:', error);
+      console.error("Error during AI move calculation:", error);
     } finally {
       setIsAiThinking(false);
     }
@@ -210,10 +243,10 @@ function App() {
 
   // Start a new engine game
   const startEngineGame = useCallback(() => {
-    console.log('Starting engine game (vs AI)');
+    console.log("Starting engine game (vs AI)");
 
     // Set game mode to vsEngine
-    webRTC.updateGameMode('vsEngine');
+    webRTC.updateGameMode("vsEngine");
     webRTC.updatePlayerColor(COLORS.WHITE);
 
     // Reset game state
@@ -223,7 +256,7 @@ function App() {
     timerStateRef.current = {
       whiteTime: 180000,
       blackTime: 180000,
-      lastUpdate: Date.now()
+      lastUpdate: Date.now(),
     };
 
     // Reset AI thinking state
@@ -232,10 +265,10 @@ function App() {
 
   // Handle reset board - return to single player mode
   const handleResetToSinglePlayer = useCallback(() => {
-    console.log('Resetting to single player mode');
+    console.log("Resetting to single player mode");
 
     // Set game mode to single player
-    webRTC.updateGameMode('singlePlayer');
+    webRTC.updateGameMode("singlePlayer");
     webRTC.updatePlayerColor(null);
 
     // Reset game state
@@ -245,7 +278,7 @@ function App() {
     timerStateRef.current = {
       whiteTime: 180000,
       blackTime: 180000,
-      lastUpdate: Date.now()
+      lastUpdate: Date.now(),
     };
 
     // Reset AI thinking state
@@ -257,12 +290,12 @@ function App() {
     // console.log('Received message from peer:', message);
 
     // Handle the double-wrapped message structure from WebRTC service
-    if (message.type === 'gameState' && message.data) {
+    if (message.type === "gameState" && message.data) {
       const innerMessage = message.data;
 
-      if (innerMessage.type === 'gameStateSync') {
-        console.log('Updating game state from peer:', innerMessage.gameState);
-        setGameState(prevState => {
+      if (innerMessage.type === "gameStateSync") {
+        console.log("Updating game state from peer:", innerMessage.gameState);
+        setGameState((prevState) => {
           // console.log('State update - from:', prevState, 'to:', innerMessage.gameState);
           return innerMessage.gameState;
         });
@@ -270,15 +303,18 @@ function App() {
         // Update timer ref without causing re-render
         if (innerMessage.timerState) {
           timerStateRef.current = { ...innerMessage.timerState };
-          console.log('Timer state updated from peer:', innerMessage.timerState);
+          console.log(
+            "Timer state updated from peer:",
+            innerMessage.timerState
+          );
         }
-      } else if (innerMessage.type === 'playerAssignment') {
+      } else if (innerMessage.type === "playerAssignment") {
         // console.log('Received initial game state from host:', innerMessage.initialGameState);
         setGameState(innerMessage.initialGameState);
       }
     }
     // Handle game state sync request
-    else if (message.type === 'requestGameStateSync') {
+    else if (message.type === "requestGameStateSync") {
       // console.log('Peer requested current game state, sending...');
 
       // Prevent rapid duplicate sync requests (debounce to max once per 2 seconds)
@@ -286,13 +322,13 @@ function App() {
       const timeSinceLastRequest = now - lastSyncRequestTime.current;
 
       // Use setGameState to get the current state and send it
-      setGameState(currentState => {
+      setGameState((currentState) => {
         // console.log('Sending current game state in response to request:', currentState);
         webRTC.sendGameState({
-          type: 'gameStateSync',
+          type: "gameStateSync",
           gameState: currentState,
           timerState: { ...timerStateRef.current },
-          timestamp: now
+          timestamp: now,
         });
         return currentState; // Don't modify state, just use it
       });
@@ -303,21 +339,22 @@ function App() {
       }
     }
     // Handle graceful disconnect notification
-    else if (message.type === 'disconnect' && message.data) {
+    else if (message.type === "disconnect" && message.data) {
       const innerMessage = message.data;
-      if (innerMessage.type === 'gracefulDisconnect') {
+      if (innerMessage.type === "gracefulDisconnect") {
         // console.log('Received graceful disconnect notification');
-        webRTC.setGracefulDisconnectFlag && webRTC.setGracefulDisconnectFlag(true);
+        webRTC.setGracefulDisconnectFlag &&
+          webRTC.setGracefulDisconnectFlag(true);
       }
     }
     // Legacy handling for direct messages (fallback)
-    else if (message.type === 'gameStateSync') {
+    else if (message.type === "gameStateSync") {
       // console.log('Updating game state from peer (direct):', message.gameState);
-      setGameState(prevState => {
+      setGameState((prevState) => {
         // console.log('State update - from:', prevState, 'to:', message.gameState);
         return message.gameState;
       });
-    } else if (message.type === 'playerAssignment') {
+    } else if (message.type === "playerAssignment") {
       // console.log('Received initial game state from host (direct):', message.initialGameState);
       setGameState(message.initialGameState);
     }
@@ -332,14 +369,14 @@ function App() {
 
   // Set up data channel open handler to send initial state when ready
   useEffect(() => {
-    if (webRTC.setOnDataChannelOpen && webRTC.gameMode === 'host') {
+    if (webRTC.setOnDataChannelOpen && webRTC.gameMode === "host") {
       webRTC.setOnDataChannelOpen(() => {
         // console.log('Data channel ready - sending initial game state to guest:', gameState);
         webRTC.sendGameState({
-          type: 'playerAssignment',
+          type: "playerAssignment",
           hostColor: COLORS.WHITE,
           guestColor: COLORS.BLACK,
-          initialGameState: gameState
+          initialGameState: gameState,
         });
       });
     }
@@ -347,14 +384,14 @@ function App() {
 
   // Reset game state when returning to single player
   useEffect(() => {
-    if (webRTC.gameMode === 'singlePlayer') {
+    if (webRTC.gameMode === "singlePlayer") {
       // console.log('Returning to single player - resetting game state');
       setGameState(createInitialGameState());
       // Reset timer state as well
       timerStateRef.current = {
         whiteTime: 180000,
         blackTime: 180000,
-        lastUpdate: Date.now()
+        lastUpdate: Date.now(),
       };
       // Reset AI thinking state
       setIsAiThinking(false);
@@ -363,14 +400,23 @@ function App() {
 
   // Handle reconnection - request game state sync if we're the guest
   useEffect(() => {
-    if (webRTC.isConnected && !webRTC.isReconnecting && webRTC.gameMode === 'guest') {
+    if (
+      webRTC.isConnected &&
+      !webRTC.isReconnecting &&
+      webRTC.gameMode === "guest"
+    ) {
       // Small delay to ensure connection is stable after reconnection
       setTimeout(() => {
         // console.log('Reconnected as guest - requesting game state sync');
         webRTC.requestGameStateSync();
       }, 1000);
     }
-  }, [webRTC.isConnected, webRTC.isReconnecting, webRTC.gameMode, webRTC.requestGameStateSync]);
+  }, [
+    webRTC.isConnected,
+    webRTC.isReconnecting,
+    webRTC.gameMode,
+    webRTC.requestGameStateSync,
+  ]);
 
   // Reset lastUpdate timestamp when reconnection completes to prevent time deduction bug
   useEffect(() => {
@@ -393,9 +439,11 @@ function App() {
 
       {/* Reconnection Status Overlay */}
       {webRTC.isReconnecting && (
-        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 bg-yellow-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-3">
-          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-          <span className="font-medium">Reconnecting to opponent...</span>
+        <div className="fixed top-16 sm:top-20 left-1/2 transform -translate-x-1/2 z-50 bg-yellow-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg shadow-lg flex items-center space-x-2 sm:space-x-3 max-w-[90vw]">
+          <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-white"></div>
+          <span className="font-medium text-sm sm:text-base">
+            Reconnecting...
+          </span>
         </div>
       )}
 

@@ -5,9 +5,12 @@ import React from "react";
  */
 const CombineModeIndicator = () => {
   return (
-    <div className="mb-4 px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-xl font-semibold shadow-2xl border-2 border-purple-400 animate-pulse-subtle">
-      <span className="text-2xl mr-2">🔮</span>
-      COMBINE MODE ACTIVE - Press ESC to cancel
+    <div className="mb-3 sm:mb-4 px-3 py-2 sm:px-4 sm:py-2.5 md:px-6 md:py-3 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg sm:rounded-xl font-semibold shadow-2xl border-2 border-purple-400 animate-pulse-subtle text-xs sm:text-sm md:text-base max-w-full mx-2">
+      <span className="text-lg sm:text-xl md:text-2xl mr-2">🔮</span>
+      <span className="hidden sm:inline">
+        COMBINE MODE ACTIVE - Press ESC to cancel
+      </span>
+      <span className="sm:hidden">COMBINE MODE - ESC to cancel</span>
     </div>
   );
 };

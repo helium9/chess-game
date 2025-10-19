@@ -1,408 +1,494 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 
 const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty }) => {
-    const [receiverIdInput, setReceiverIdInput] = useState('');
-    const [messages, setMessages] = useState([]);
-    const [testMessage, setTestMessage] = useState('');
-    const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [receiverIdInput, setReceiverIdInput] = useState("");
+  const [messages, setMessages] = useState([]);
+  const [testMessage, setTestMessage] = useState("");
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
 
-    const {
-        isConnecting,
-        isConnected,
-        connectionId,
-        connectionState,
-        error,
-        gameMode,
-        playerColor,
-        createCall,
-        joinCall,
-        disconnect,
-        cancelCall,
-        sendGameState,
-        sendMove,
-        setOnMessageReceived
-    } = webRTC;
+  const {
+    isConnecting,
+    isConnected,
+    connectionId,
+    connectionState,
+    error,
+    gameMode,
+    playerColor,
+    createCall,
+    joinCall,
+    disconnect,
+    cancelCall,
+    sendGameState,
+    sendMove,
+    setOnMessageReceived,
+  } = webRTC;
 
-    // Set up message handling
-    useEffect(() => {
-        setOnMessageReceived((message) => {
-            // console.log('Received message:', message);
-            setMessages(prev => [...prev, {
-                type: 'received',
-                data: message,
-                timestamp: new Date().toLocaleTimeString()
-            }]);
-        });
-    }, [setOnMessageReceived]);
+  // Set up message handling
+  useEffect(() => {
+    setOnMessageReceived((message) => {
+      // console.log('Received message:', message);
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "received",
+          data: message,
+          timestamp: new Date().toLocaleTimeString(),
+        },
+      ]);
+    });
+  }, [setOnMessageReceived]);
 
-    // Monitor connection state changes and reset UI when peer disconnects
-    useEffect(() => {
-        if (connectionState === 'disconnected' || connectionState === 'failed' || connectionState === 'closed') {
-            // Reset UI state when connection is lost
-            if (connectionState === 'disconnected') {
-                // console.log('Peer disconnected - resetting UI');
-                // Add a disconnection message to the log
-                setMessages(prev => [...prev, {
-                    type: 'system',
-                    data: { type: 'system', message: 'Peer disconnected' },
-                    timestamp: new Date().toLocaleTimeString()
-                }]);
-            }
+  // Monitor connection state changes and reset UI when peer disconnects
+  useEffect(() => {
+    if (
+      connectionState === "disconnected" ||
+      connectionState === "failed" ||
+      connectionState === "closed"
+    ) {
+      // Reset UI state when connection is lost
+      if (connectionState === "disconnected") {
+        // console.log('Peer disconnected - resetting UI');
+        // Add a disconnection message to the log
+        setMessages((prev) => [
+          ...prev,
+          {
+            type: "system",
+            data: { type: "system", message: "Peer disconnected" },
+            timestamp: new Date().toLocaleTimeString(),
+          },
+        ]);
+      }
 
-            // Reset local UI state after a brief delay
-            const resetTimer = setTimeout(() => {
-                setReceiverIdInput('');
-                setShowDebugPanel(false);
-                setTestMessage('');
-                // Keep messages for a bit longer so user can see what happened
-                setTimeout(() => {
-                    setMessages([]);
-                }, 3000);
-            }, 1000);
+      // Reset local UI state after a brief delay
+      const resetTimer = setTimeout(() => {
+        setReceiverIdInput("");
+        setShowDebugPanel(false);
+        setTestMessage("");
+        // Keep messages for a bit longer so user can see what happened
+        setTimeout(() => {
+          setMessages([]);
+        }, 3000);
+      }, 1000);
 
-            return () => clearTimeout(resetTimer);
-        }
-    }, [connectionState]);
+      return () => clearTimeout(resetTimer);
+    }
+  }, [connectionState]);
 
-    const handleInitiateCall = async () => {
-        try {
-            const callId = await createCall();
-            // console.log('Call created with ID:', callId);
-        } catch (err) {
-            console.error('Failed to create call:', err);
-            alert('Failed to create call: ' + err.message);
-        }
+  const handleInitiateCall = async () => {
+    try {
+      const callId = await createCall();
+      // console.log('Call created with ID:', callId);
+    } catch (err) {
+      console.error("Failed to create call:", err);
+      alert("Failed to create call: " + err.message);
+    }
+  };
+
+  const handleAcceptCall = async () => {
+    if (!receiverIdInput.trim()) {
+      alert("Please enter a connection ID");
+      return;
+    }
+
+    try {
+      await joinCall(receiverIdInput.trim());
+      // console.log('Successfully joined call');
+    } catch (err) {
+      console.error("Failed to join call:", err);
+      alert("Failed to join call: " + err.message);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      await disconnect();
+      setReceiverIdInput("");
+      setMessages([]);
+      setTestMessage("");
+      // console.log('Disconnected successfully');
+    } catch (err) {
+      console.error("Failed to disconnect:", err);
+    }
+  };
+
+  const handleCancelCall = async () => {
+    try {
+      await cancelCall();
+      // console.log('Call cancelled successfully');
+    } catch (err) {
+      console.error("Failed to cancel call:", err);
+    }
+  };
+
+  // Test message functions for debugging
+  const sendTestMessage = () => {
+    if (!testMessage.trim()) {
+      alert("Enter a test message");
+      return;
+    }
+
+    const message = {
+      type: "test",
+      content: testMessage,
+      sender: "local",
     };
 
-    const handleAcceptCall = async () => {
-        if (!receiverIdInput.trim()) {
-            alert('Please enter a connection ID');
-            return;
-        }
+    sendGameState(message);
+    setMessages((prev) => [
+      ...prev,
+      {
+        type: "sent",
+        data: message,
+        timestamp: new Date().toLocaleTimeString(),
+      },
+    ]);
+    setTestMessage("");
+  };
 
-        try {
-            await joinCall(receiverIdInput.trim());
-            // console.log('Successfully joined call');
-        } catch (err) {
-            console.error('Failed to join call:', err);
-            alert('Failed to join call: ' + err.message);
-        }
+  const sendTestMove = () => {
+    const testMove = {
+      from: "e2",
+      to: "e4",
+      piece: "pawn",
+      timestamp: Date.now(),
     };
 
-    const handleDisconnect = async () => {
-        try {
-            await disconnect();
-            setReceiverIdInput('');
-            setMessages([]);
-            setTestMessage('');
-            // console.log('Disconnected successfully');
-        } catch (err) {
-            console.error('Failed to disconnect:', err);
-        }
-    };
+    sendMove(testMove);
+    setMessages((prev) => [
+      ...prev,
+      {
+        type: "sent",
+        data: { type: "move", data: testMove },
+        timestamp: new Date().toLocaleTimeString(),
+      },
+    ]);
+  };
 
-    const handleCancelCall = async () => {
-        try {
-            await cancelCall();
-            // console.log('Call cancelled successfully');
-        } catch (err) {
-            console.error('Failed to cancel call:', err);
-        }
-    };
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(connectionId);
+    alert("Connection ID copied to clipboard!");
+  };
 
-    // Test message functions for debugging
-    const sendTestMessage = () => {
-        if (!testMessage.trim()) {
-            alert('Enter a test message');
-            return;
-        }
+  return (
+    <nav className="bg-slate-800 shadow-lg border-b border-slate-600">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
+        <div className="flex flex-col sm:flex-row justify-between items-center py-2 sm:py-0 sm:h-16 gap-2 sm:gap-0">
+          {/* Logo/Title */}
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            <h1 className="text-lg sm:text-xl font-bold text-white">
+              Chess Game
+            </h1>
 
-        const message = {
-            type: 'test',
-            content: testMessage,
-            sender: 'local'
-        };
+            {/* Game Mode Indicator */}
+            <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2">
+              <span
+                className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                  gameMode === "singlePlayer"
+                    ? "bg-gray-600 text-gray-100"
+                    : gameMode === "vsEngine"
+                    ? "bg-purple-600 text-white"
+                    : gameMode === "host"
+                    ? "bg-blue-600 text-white"
+                    : gameMode === "guest"
+                    ? "bg-green-600 text-white"
+                    : "bg-gray-600 text-gray-100"
+                }`}
+              >
+                {gameMode === "singlePlayer" && "🎮 Single"}
+                {gameMode === "vsEngine" && `🤖 vs AI`}
+                {gameMode === "host" && "👑 Host"}
+                {gameMode === "guest" && "🎯 Guest"}
+              </span>
 
-        sendGameState(message);
-        setMessages(prev => [...prev, {
-            type: 'sent',
-            data: message,
-            timestamp: new Date().toLocaleTimeString()
-        }]);
-        setTestMessage('');
-    };
-
-    const sendTestMove = () => {
-        const testMove = {
-            from: 'e2',
-            to: 'e4',
-            piece: 'pawn',
-            timestamp: Date.now()
-        };
-
-        sendMove(testMove);
-        setMessages(prev => [...prev, {
-            type: 'sent',
-            data: { type: 'move', data: testMove },
-            timestamp: new Date().toLocaleTimeString()
-        }]);
-    };
-
-    const copyToClipboard = () => {
-        navigator.clipboard.writeText(connectionId);
-        alert('Connection ID copied to clipboard!');
-    };
-
-    return (
-        <nav className="bg-slate-800 shadow-lg border-b border-slate-600">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex justify-between items-center h-16">
-                    {/* Logo/Title */}
-                    <div className="flex items-center space-x-4">
-                        <h1 className="text-xl font-bold text-white">Chess Game</h1>
-
-                        {/* Game Mode Indicator */}
-                        <div className="flex items-center space-x-2">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${gameMode === 'singlePlayer' ? 'bg-gray-600 text-gray-100' :
-                                    gameMode === 'vsEngine' ? 'bg-purple-600 text-white' :
-                                        gameMode === 'host' ? 'bg-blue-600 text-white' :
-                                            gameMode === 'guest' ? 'bg-green-600 text-white' :
-                                                'bg-gray-600 text-gray-100'
-                                }`}>
-                                {gameMode === 'singlePlayer' && '🎮 Single Player'}
-                                {gameMode === 'vsEngine' && `🤖 vs Engine (${aiDifficulty?.name || 'Medium'})`}
-                                {gameMode === 'host' && '👑 Host (White)'}
-                                {gameMode === 'guest' && '🎯 Guest (Black)'}
-                            </span>
-
-                            {gameState && gameMode !== 'singlePlayer' && (
-                                <span className={`px-2 py-1 rounded text-xs font-medium ${gameMode === 'vsEngine'
-                                        ? (gameState.currentTurn === 'white' ? 'bg-green-500 text-white animate-pulse' : 'bg-gray-500 text-gray-200')
-                                        : (gameState.currentTurn === playerColor ? 'bg-green-500 text-white animate-pulse' : 'bg-gray-500 text-gray-200')
-                                    }`}>
-                                    {gameMode === 'vsEngine'
-                                        ? (gameState.currentTurn === 'white' ? 'Your Turn' : 'AI Thinking...')
-                                        : (gameState.currentTurn === playerColor ? 'Your Turn' : 'Opponent\'s Turn')
-                                    }
-                                </span>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* P2P Connection Controls */}
-                    <div className="flex items-center space-x-4">
-                        {!isConnected && !isConnecting && (
-                            <>
-                                {/* Engine Mode Button */}
-                                <button
-                                    onClick={onStartEngineGame}
-                                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-2"
-                                    title="Play against AI"
-                                >
-                                    <span>🤖</span>
-                                    <span>Play vs Engine</span>
-                                </button>
-
-                                {/* Initiate Call Button */}
-                                <button
-                                    onClick={handleInitiateCall}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
-                                >
-                                    Start Game
-                                </button>
-
-                                {/* Join Game Section */}
-                                <div className="flex items-center space-x-2">
-                                    <input
-                                        type="text"
-                                        placeholder="Enter Game ID"
-                                        value={receiverIdInput}
-                                        onChange={(e) => setReceiverIdInput(e.target.value)}
-                                        className="bg-slate-700 text-white placeholder-slate-400 px-3 py-2 rounded-lg border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                    />
-                                    <button
-                                        onClick={handleAcceptCall}
-                                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
-                                    >
-                                        Join Game
-                                    </button>
-                                </div>
-                            </>
-                        )}
-
-                        {/* Waiting for Connection */}
-                        {isConnecting && !isConnected && (
-                            <div className="flex items-center space-x-4">
-                                <div className="text-white">
-                                    <span className="text-sm text-slate-300">Your Game ID:</span>
-                                    <div className="flex items-center space-x-2 mt-1">
-                                        <code className="bg-slate-700 px-3 py-1 rounded text-blue-300 font-mono text-sm">
-                                            {connectionId}
-                                        </code>
-                                        <button
-                                            onClick={copyToClipboard}
-                                            className="bg-slate-600 hover:bg-slate-500 text-white px-2 py-1 rounded text-xs transition-colors duration-200"
-                                        >
-                                            Copy
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="flex items-center text-yellow-400">
-                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-yellow-400 mr-2"></div>
-                                    <span className="text-sm">Waiting for opponent...</span>
-                                </div>
-                                <button
-                                    onClick={handleCancelCall}
-                                    className="bg-red-600 hover:bg-red-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center justify-center"
-                                    title="Cancel connection"
-                                >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Connected State */}
-                        {isConnected && (
-                            <div className="flex items-center space-x-4">
-                                <div className="flex items-center text-green-400">
-                                    <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
-                                    <span className="text-sm">Connected to opponent</span>
-                                </div>
-                                <button
-                                    onClick={() => setShowDebugPanel(!showDebugPanel)}
-                                    className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 rounded-lg font-medium transition-colors duration-200 text-sm"
-                                >
-                                    Debug
-                                </button>
-                                <button
-                                    onClick={handleDisconnect}
-                                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors duration-200"
-                                >
-                                    Disconnect
-                                </button>
-                            </div>
-                        )}
-
-                        {/* Error Display */}
-                        {error && (
-                            <div className="flex items-center text-red-400">
-                                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                                </svg>
-                                <span className="text-sm">{error}</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
+              {gameState && gameMode !== "singlePlayer" && (
+                <span
+                  className={`px-2 py-1 rounded text-xs font-medium whitespace-nowrap ${
+                    gameMode === "vsEngine"
+                      ? gameState.currentTurn === "white"
+                        ? "bg-green-500 text-white animate-pulse"
+                        : "bg-gray-500 text-gray-200"
+                      : gameState.currentTurn === playerColor
+                      ? "bg-green-500 text-white animate-pulse"
+                      : "bg-gray-500 text-gray-200"
+                  }`}
+                >
+                  {gameMode === "vsEngine"
+                    ? gameState.currentTurn === "white"
+                      ? "Your Turn"
+                      : "AI..."
+                    : gameState.currentTurn === playerColor
+                    ? "Your Turn"
+                    : "Wait..."}
+                </span>
+              )}
             </div>
+          </div>
 
-            {/* Debug Panel */}
-            {showDebugPanel && isConnected && (
-                <div className="bg-slate-900 border-t border-slate-600 px-4 py-4">
-                    <div className="max-w-7xl mx-auto">
-                        <h3 className="text-lg font-semibold text-white mb-4">WebRTC Debug Panel</h3>
+          {/* P2P Connection Controls */}
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 md:gap-4">
+            {!isConnected && !isConnecting && (
+              <>
+                {/* Engine Mode Button */}
+                <button
+                  onClick={onStartEngineGame}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium transition-colors duration-200 flex items-center space-x-1 sm:space-x-2 text-sm sm:text-base"
+                  title="Play against AI"
+                >
+                  <span>🤖</span>
+                  <span className="hidden sm:inline">Play vs Engine</span>
+                  <span className="sm:hidden">vs AI</span>
+                </button>
 
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {/* Connection Info */}
-                            <div className="space-y-3">
-                                <h4 className="text-md font-medium text-slate-300">Connection Status</h4>
-                                <div className="bg-slate-800 p-3 rounded-lg">
-                                    <div className="text-sm space-y-1">
-                                        <div className="text-slate-300">
-                                            <span className="font-medium">State:</span>
-                                            <span className={`ml-2 px-2 py-1 rounded text-xs font-medium ${connectionState === 'connected' ? 'bg-green-600 text-white' :
-                                                connectionState === 'connecting' ? 'bg-yellow-600 text-white' :
-                                                    connectionState === 'failed' ? 'bg-red-600 text-white' :
-                                                        'bg-gray-600 text-white'
-                                                }`}>
-                                                {connectionState}
-                                            </span>
-                                        </div>
-                                        <div className="text-slate-300">
-                                            <span className="font-medium">Call ID:</span>
-                                            <code className="ml-2 text-blue-300 font-mono text-xs">{connectionId}</code>
-                                        </div>
-                                    </div>
-                                </div>
+                {/* Initiate Call Button */}
+                <button
+                  onClick={handleInitiateCall}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium transition-colors duration-200 text-sm sm:text-base"
+                >
+                  <span className="hidden sm:inline">Start Game</span>
+                  <span className="sm:hidden">Start</span>
+                </button>
 
-                                {/* Test Message Sender */}
-                                <div className="space-y-2">
-                                    <h5 className="text-sm font-medium text-slate-300">Send Test Message</h5>
-                                    <div className="flex space-x-2">
-                                        <input
-                                            type="text"
-                                            placeholder="Enter test message"
-                                            value={testMessage}
-                                            onChange={(e) => setTestMessage(e.target.value)}
-                                            className="flex-1 bg-slate-700 text-white placeholder-slate-400 px-3 py-2 rounded border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                                            onKeyPress={(e) => e.key === 'Enter' && sendTestMessage()}
-                                        />
-                                        <button
-                                            onClick={sendTestMessage}
-                                            disabled={!testMessage.trim()}
-                                            className="bg-purple-600 hover:bg-purple-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white px-3 py-2 rounded font-medium transition-colors duration-200 text-sm"
-                                        >
-                                            Send
-                                        </button>
-                                    </div>
-                                    <button
-                                        onClick={sendTestMove}
-                                        className="w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded font-medium transition-colors duration-200 text-sm"
-                                    >
-                                        Send Test Move (e2→e4)
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Message Log */}
-                            <div className="space-y-3">
-                                <div className="flex justify-between items-center">
-                                    <h4 className="text-md font-medium text-slate-300">Message Log</h4>
-                                    <button
-                                        onClick={() => setMessages([])}
-                                        className="bg-slate-600 hover:bg-slate-500 text-white px-2 py-1 rounded text-xs transition-colors duration-200"
-                                    >
-                                        Clear
-                                    </button>
-                                </div>
-                                <div className="bg-slate-800 p-3 rounded-lg h-48 overflow-y-auto">
-                                    {messages.length === 0 ? (
-                                        <div className="text-slate-400 text-sm text-center py-8">
-                                            No messages yet. Send a test message to see it here.
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-2">
-                                            {messages.map((msg, index) => (
-                                                <div key={index} className={`text-xs p-2 rounded ${msg.type === 'sent' ? 'bg-blue-900 text-blue-100' :
-                                                    msg.type === 'received' ? 'bg-green-900 text-green-100' :
-                                                        msg.type === 'system' ? 'bg-yellow-900 text-yellow-100' :
-                                                            'bg-gray-900 text-gray-100'
-                                                    }`}>
-                                                    <div className="flex justify-between items-start mb-1">
-                                                        <span className="font-medium">
-                                                            {msg.type === 'sent' ? '→ Sent' :
-                                                                msg.type === 'received' ? '← Received' :
-                                                                    msg.type === 'system' ? '⚠ System' : '• Unknown'}
-                                                        </span>
-                                                        <span className="text-slate-400">{msg.timestamp}</span>
-                                                    </div>
-                                                    <pre className="text-xs overflow-x-auto">
-                                                        {JSON.stringify(msg.data, null, 2)}
-                                                    </pre>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                {/* Join Game Section */}
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="text"
+                    placeholder="Game ID"
+                    value={receiverIdInput}
+                    onChange={(e) => setReceiverIdInput(e.target.value)}
+                    className="bg-slate-700 text-white placeholder-slate-400 px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base w-24 sm:w-auto"
+                  />
+                  <button
+                    onClick={handleAcceptCall}
+                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium transition-colors duration-200 text-sm sm:text-base"
+                  >
+                    Join
+                  </button>
                 </div>
+              </>
             )}
-        </nav>
-    );
+
+            {/* Waiting for Connection */}
+            {isConnecting && !isConnected && (
+              <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4">
+                <div className="text-white">
+                  <span className="text-xs sm:text-sm text-slate-300">
+                    Game ID:
+                  </span>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <code className="bg-slate-700 px-2 py-1 rounded text-blue-300 font-mono text-xs sm:text-sm max-w-[150px] sm:max-w-none overflow-hidden text-ellipsis">
+                      {connectionId}
+                    </code>
+                    <button
+                      onClick={copyToClipboard}
+                      className="bg-slate-600 hover:bg-slate-500 text-white px-2 py-1 rounded text-xs transition-colors duration-200"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center text-yellow-400">
+                  <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-yellow-400 mr-2"></div>
+                  <span className="text-xs sm:text-sm">Waiting...</span>
+                </div>
+                <button
+                  onClick={handleCancelCall}
+                  className="bg-red-600 hover:bg-red-700 text-white p-1.5 sm:p-2 rounded-lg transition-colors duration-200 flex items-center justify-center"
+                  title="Cancel connection"
+                >
+                  <svg
+                    className="w-3 h-3 sm:w-4 sm:h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            )}
+
+            {/* Connected State */}
+            {isConnected && (
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4">
+                <div className="flex items-center text-green-400">
+                  <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+                  <span className="text-xs sm:text-sm">Connected</span>
+                </div>
+                <button
+                  onClick={() => setShowDebugPanel(!showDebugPanel)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-2 py-1.5 sm:px-3 sm:py-2 rounded-lg font-medium transition-colors duration-200 text-xs sm:text-sm"
+                >
+                  Debug
+                </button>
+                <button
+                  onClick={handleDisconnect}
+                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-medium transition-colors duration-200 text-xs sm:text-sm"
+                >
+                  Disconnect
+                </button>
+              </div>
+            )}
+
+            {/* Error Display */}
+            {error && (
+              <div className="flex items-center text-red-400">
+                <svg
+                  className="w-4 h-4 mr-2"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <span className="text-sm">{error}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Debug Panel */}
+      {showDebugPanel && isConnected && (
+        <div className="bg-slate-900 border-t border-slate-600 px-4 py-4">
+          <div className="max-w-7xl mx-auto">
+            <h3 className="text-lg font-semibold text-white mb-4">
+              WebRTC Debug Panel
+            </h3>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Connection Info */}
+              <div className="space-y-3">
+                <h4 className="text-md font-medium text-slate-300">
+                  Connection Status
+                </h4>
+                <div className="bg-slate-800 p-3 rounded-lg">
+                  <div className="text-sm space-y-1">
+                    <div className="text-slate-300">
+                      <span className="font-medium">State:</span>
+                      <span
+                        className={`ml-2 px-2 py-1 rounded text-xs font-medium ${
+                          connectionState === "connected"
+                            ? "bg-green-600 text-white"
+                            : connectionState === "connecting"
+                            ? "bg-yellow-600 text-white"
+                            : connectionState === "failed"
+                            ? "bg-red-600 text-white"
+                            : "bg-gray-600 text-white"
+                        }`}
+                      >
+                        {connectionState}
+                      </span>
+                    </div>
+                    <div className="text-slate-300">
+                      <span className="font-medium">Call ID:</span>
+                      <code className="ml-2 text-blue-300 font-mono text-xs">
+                        {connectionId}
+                      </code>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Test Message Sender */}
+                <div className="space-y-2">
+                  <h5 className="text-sm font-medium text-slate-300">
+                    Send Test Message
+                  </h5>
+                  <div className="flex space-x-2">
+                    <input
+                      type="text"
+                      placeholder="Enter test message"
+                      value={testMessage}
+                      onChange={(e) => setTestMessage(e.target.value)}
+                      className="flex-1 bg-slate-700 text-white placeholder-slate-400 px-3 py-2 rounded border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                      onKeyPress={(e) => e.key === "Enter" && sendTestMessage()}
+                    />
+                    <button
+                      onClick={sendTestMessage}
+                      disabled={!testMessage.trim()}
+                      className="bg-purple-600 hover:bg-purple-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white px-3 py-2 rounded font-medium transition-colors duration-200 text-sm"
+                    >
+                      Send
+                    </button>
+                  </div>
+                  <button
+                    onClick={sendTestMove}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded font-medium transition-colors duration-200 text-sm"
+                  >
+                    Send Test Move (e2→e4)
+                  </button>
+                </div>
+              </div>
+
+              {/* Message Log */}
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-md font-medium text-slate-300">
+                    Message Log
+                  </h4>
+                  <button
+                    onClick={() => setMessages([])}
+                    className="bg-slate-600 hover:bg-slate-500 text-white px-2 py-1 rounded text-xs transition-colors duration-200"
+                  >
+                    Clear
+                  </button>
+                </div>
+                <div className="bg-slate-800 p-3 rounded-lg h-48 overflow-y-auto">
+                  {messages.length === 0 ? (
+                    <div className="text-slate-400 text-sm text-center py-8">
+                      No messages yet. Send a test message to see it here.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {messages.map((msg, index) => (
+                        <div
+                          key={index}
+                          className={`text-xs p-2 rounded ${
+                            msg.type === "sent"
+                              ? "bg-blue-900 text-blue-100"
+                              : msg.type === "received"
+                              ? "bg-green-900 text-green-100"
+                              : msg.type === "system"
+                              ? "bg-yellow-900 text-yellow-100"
+                              : "bg-gray-900 text-gray-100"
+                          }`}
+                        >
+                          <div className="flex justify-between items-start mb-1">
+                            <span className="font-medium">
+                              {msg.type === "sent"
+                                ? "→ Sent"
+                                : msg.type === "received"
+                                ? "← Received"
+                                : msg.type === "system"
+                                ? "⚠ System"
+                                : "• Unknown"}
+                            </span>
+                            <span className="text-slate-400">
+                              {msg.timestamp}
+                            </span>
+                          </div>
+                          <pre className="text-xs overflow-x-auto">
+                            {JSON.stringify(msg.data, null, 2)}
+                          </pre>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </nav>
+  );
 };
 
 export default Navbar;
