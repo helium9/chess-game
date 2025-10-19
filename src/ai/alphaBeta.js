@@ -10,9 +10,19 @@ import { makeMove, copyBoard, executeCombination } from '../utils/gameState.js';
 import { findEligiblePairs, canReachForCombine, getHigherValuePiece, createHybridPiece } from '../utils/combinationRules.js';
 import { canDeCombine, findSpawnSquares, computeLegalAssignments, getHybridComponents } from '../utils/deCombinationRules.js';
 import { canCastle, executeCastleMove } from '../components/helpers/castlingLogic.js';
+import { zobrist } from './zobrist.js';
+import TranspositionTable, { FLAG_EXACT, FLAG_LOWER, FLAG_UPPER } from './TranspositionTable.js';
+
+// Global transposition table (290 MB)
+// Created once and reused across all searches
+const transpositionTable = new TranspositionTable(290);
+
+// Node counter for performance analysis
+let nodesSearched = 0;
 
 /**
  * Find the best move for the current position using alpha-beta pruning
+ * Now with transposition table support
  * 
  * @param {Object} gameState - Complete game state { board, currentTurn, castlingRights }
  * @param {number} depth - Search depth (ply)
@@ -20,6 +30,14 @@ import { canCastle, executeCastleMove } from '../components/helpers/castlingLogi
  */
 export const findBestMove = (gameState, depth) => {
     const { board, currentTurn, castlingRights } = gameState;
+
+    // Reset TT stats and node counter for this search
+    transpositionTable.resetStats();
+    nodesSearched = 0;
+    const startTime = performance.now();
+
+    // Generate initial position hash
+    const positionHash = zobrist.hashPosition(board, currentTurn, castlingRights, null);
 
     // Generate all legal moves
     const allMoves = getAllLegalMoves(board, currentTurn, castlingRights);
@@ -42,6 +60,9 @@ export const findBestMove = (gameState, depth) => {
         const { newBoard, newCastlingRights } = applyMove(board, move, currentTurn, castlingRights);
         const newTurn = currentTurn === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE;
 
+        // Calculate new position hash (for now, rehash entire position - will optimize later)
+        const newHash = zobrist.hashPosition(newBoard, newTurn, newCastlingRights, null);
+
         // Recursively evaluate (opponent's turn, so we minimize)
         const score = -alphaBetaSearch(
             newBoard,
@@ -49,7 +70,8 @@ export const findBestMove = (gameState, depth) => {
             depth - 1,
             -beta,
             -alpha,
-            newCastlingRights  // ✅ Pass updated castling rights
+            newCastlingRights,
+            newHash  // ✅ Pass position hash
         );
 
         // Update best move
@@ -63,11 +85,58 @@ export const findBestMove = (gameState, depth) => {
         if (alpha >= beta) {
             break; // Beta cutoff
         }
-    } return bestMove;
+    }
+
+    // Store root position in TT
+    transpositionTable.store(positionHash, bestScore, depth, FLAG_EXACT, bestMove);
+
+    // Log search statistics
+    const endTime = performance.now();
+    const stats = transpositionTable.getStats();
+    const totalProbes = stats.hits + stats.misses + (stats.depthTooShallow || 0) + (stats.wrongBounds || 0) + (stats.moveHints || 0);
+    const hitRate = totalProbes > 0 ? ((stats.hits / totalProbes) * 100).toFixed(2) : '0.00';
+    const nps = Math.floor(nodesSearched / ((endTime - startTime) / 1000)); // Nodes per second
+
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🔍 Search Statistics (Phase 2A - With TT)');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log(`⏱️  Time:        ${(endTime - startTime).toFixed(2)}ms`);
+    console.log(`📊 Depth:       ${depth} ply`);
+    console.log(`🎯 Best Score:  ${bestScore} centipawns`);
+    console.log(`📈 Nodes:       ${nodesSearched.toLocaleString()} (${nps.toLocaleString()} nps)`);
+    console.log(`💾 TT Probes:   ${totalProbes.toLocaleString()}`);
+    console.log(`   ✅ Hits:      ${stats.hits} (${hitRate}%)`);
+    console.log(`      - Exact:   ${stats.exactHits || 0}`);
+    console.log(`      - Lower:   ${stats.lowerHits || 0}`);
+    console.log(`      - Upper:   ${stats.upperHits || 0}`);
+    console.log(`   ❌ Misses:    ${stats.misses}`);
+    console.log(`   ⚠️  Depth<:   ${stats.depthTooShallow || 0}`);
+    console.log(`   ⚠️  Bounds:   ${stats.wrongBounds || 0}`);
+    console.log(`      - Lower<β: ${stats.lowerFailedBeta || 0}`);
+    console.log(`      - Upper>α: ${stats.upperFailedAlpha || 0}`);
+    console.log(`   🎯 MoveHint:  ${stats.moveHints || 0}`);
+    console.log(`💿 TT Stores:   ${stats.stores}`);
+    console.log(`⚠️  Collisions:  ${stats.collisions}`);
+
+    if (stats.hits > 0 && totalProbes > 0) {
+        const hitPercent = (stats.hits / totalProbes * 100);
+        if (hitPercent < 10) {
+            console.log(`❌ Hit rate is LOW (${hitPercent.toFixed(1)}%) - TT may not be helping much`);
+        } else if (hitPercent < 30) {
+            console.log(`⚠️  Hit rate is MODERATE (${hitPercent.toFixed(1)}%) - some benefit`);
+        } else {
+            console.log(`✅ Hit rate is GOOD (${hitPercent.toFixed(1)}%) - significant speedup!`);
+        }
+    } else {
+        console.log(`❌ NO TT HITS - Check flag logic and hash generation!`);
+    }
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
+
+    return bestMove;
 };
 
 /**
- * Alpha-beta search with negamax framework
+ * Alpha-beta search with negamax framework and transposition table
  * 
  * @param {Array} board - Current board state
  * @param {string} currentTurn - Current player
@@ -75,9 +144,21 @@ export const findBestMove = (gameState, depth) => {
  * @param {number} alpha - Alpha value (best for maximizer)
  * @param {number} beta - Beta value (best for minimizer)
  * @param {Object} castlingRights - Castling rights for both players
+ * @param {BigInt} positionHash - Zobrist hash of current position
  * @returns {number} Position evaluation score
  */
-const alphaBetaSearch = (board, currentTurn, depth, alpha, beta, castlingRights) => {
+const alphaBetaSearch = (board, currentTurn, depth, alpha, beta, castlingRights, positionHash) => {
+    // Increment node counter
+    nodesSearched++;
+
+    // Probe transposition table
+    const ttEntry = transpositionTable.probe(positionHash, depth, alpha, beta);
+
+    if (ttEntry && ttEntry.score !== undefined) {
+        // TT hit with usable score - return immediately
+        return ttEntry.score;
+    }
+
     // Terminal depth or terminal position check
     const allMoves = getAllLegalMoves(board, currentTurn, castlingRights);
     const inCheck = isInCheck(board, currentTurn);
@@ -87,19 +168,29 @@ const alphaBetaSearch = (board, currentTurn, depth, alpha, beta, castlingRights)
         const score = evaluatePosition(board, currentTurn, allMoves.length, inCheck);
 
         // Return from current player's perspective
-        return currentTurn === COLORS.WHITE ? score : -score;
+        const finalScore = currentTurn === COLORS.WHITE ? score : -score;
+
+        // Store leaf node evaluation in TT (FLAG_EXACT since it's a static eval)
+        transpositionTable.store(positionHash, finalScore, depth, FLAG_EXACT, null);
+
+        return finalScore;
     }
 
-    // Order moves for better pruning
-    const orderedMoves = orderMoves(board, allMoves, currentTurn);
+    // Order moves for better pruning (use TT move hint if available)
+    const orderedMoves = orderMoves(board, allMoves, currentTurn, ttEntry?.move);
 
     let maxScore = -Infinity;
+    let bestMove = null;
+    const origAlpha = alpha; // Save original alpha to determine flag type
 
     // Search each move
     for (const move of orderedMoves) {
         // Apply move and get updated castling rights
         const { newBoard, newCastlingRights } = applyMove(board, move, currentTurn, castlingRights);
         const newTurn = currentTurn === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE;
+
+        // Calculate new position hash (full rehash for now)
+        const newHash = zobrist.hashPosition(newBoard, newTurn, newCastlingRights, null);
 
         // Recursive search (negamax: opponent's best is our worst)
         const score = -alphaBetaSearch(
@@ -108,17 +199,37 @@ const alphaBetaSearch = (board, currentTurn, depth, alpha, beta, castlingRights)
             depth - 1,
             -beta,
             -alpha,
-            newCastlingRights  // ✅ Pass updated castling rights
+            newCastlingRights,
+            newHash  // ✅ Pass position hash
         );
 
-        maxScore = Math.max(maxScore, score);
+        if (score > maxScore) {
+            maxScore = score;
+            bestMove = move;
+        }
+
         alpha = Math.max(alpha, score);
 
         // Beta cutoff (opponent won't allow this position)
         if (alpha >= beta) {
-            break;
+            // Fail-high: score >= beta
+            transpositionTable.store(positionHash, maxScore, depth, FLAG_LOWER, bestMove);
+            return maxScore;
         }
-    } return maxScore;
+    }
+
+    // Determine flag type based on whether we improved alpha
+    let flag;
+    if (maxScore <= origAlpha) {
+        flag = FLAG_UPPER; // Fail-low: score <= alpha (no improvement)
+    } else {
+        flag = FLAG_EXACT; // Exact: alpha < score < beta (within window)
+    }
+
+    // Store in transposition table
+    transpositionTable.store(positionHash, maxScore, depth, flag, bestMove);
+
+    return maxScore;
 };
 
 /**
@@ -494,4 +605,23 @@ export const moveToAlgebraic = (move) => {
     }
 
     return notation;
+};
+
+/**
+ * Get transposition table statistics
+ * Useful for performance analysis and debugging
+ * 
+ * @returns {Object} TT statistics
+ */
+export const getTranspositionTableStats = () => {
+    return transpositionTable.getStats();
+};
+
+/**
+ * Clear the transposition table
+ * Should be called when starting a new game
+ */
+export const clearTranspositionTable = () => {
+    transpositionTable.clear();
+    console.log('Transposition table cleared');
 };

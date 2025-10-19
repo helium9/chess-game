@@ -4,7 +4,7 @@
 // AI DIFFICULTY LEVELS
 // ============================================
 export const AI_DIFFICULTY = {
-    EASY: { depth: 2, name: 'Easy' },
+    EASY: { depth: 3, name: 'Easy' },
     MEDIUM: { depth: 4, name: 'Medium' },
     HARD: { depth: 6, name: 'Hard' }
 };

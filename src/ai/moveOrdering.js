@@ -20,19 +20,21 @@ const CAPTURE_BASE_SCORE = 3000;
  * Better moves first = more cutoffs = faster search
  * 
  * Priority:
- * 1. Captures (MVV-LVA: Most Valuable Victim - Least Valuable Attacker)
- * 2. Center control (moves toward center squares)
+ * 1. TT move (best move from previous search at this position)
+ * 2. Captures (MVV-LVA: Most Valuable Victim - Least Valuable Attacker)
+ * 3. Center control (moves toward center squares)
  * 
  * @param {Array} board - 8x8 board array
  * @param {Array} moves - Array of move objects {from: {row, col}, to: {row, col}}
  * @param {string} currentTurn - Color of player making moves
+ * @param {Object|null} ttMove - Move hint from transposition table (optional)
  * @returns {Array} Sorted array of moves (best first)
  */
-export const orderMoves = (board, moves, currentTurn) => {
+export const orderMoves = (board, moves, currentTurn, ttMove = null) => {
     // Score each move
     const scoredMoves = moves.map(move => ({
         ...move,
-        score: scoreMove(board, move, currentTurn)
+        score: scoreMove(board, move, currentTurn, ttMove)
     }));
 
     // Sort descending (highest score first)
@@ -47,10 +49,20 @@ export const orderMoves = (board, moves, currentTurn) => {
  * @param {Array} board - 8x8 board array
  * @param {Object} move - Move object {from: {row, col}, to: {row, col}}
  * @param {string} currentTurn - Color of player making the move
+ * @param {Object|null} ttMove - Move hint from transposition table
  * @returns {number} Move score (higher = better)
  */
-const scoreMove = (board, move, currentTurn) => {
+const scoreMove = (board, move, currentTurn, ttMove = null) => {
     let score = 0;
+
+    // ============================================
+    // 0. TT MOVE (Highest Priority)
+    // ============================================
+    if (ttMove && movesMatch(move, ttMove)) {
+        // This move was best in a previous search - try it first!
+        score += 10000;
+        return score; // Return immediately - this should be first
+    }
 
     const { from, to } = move;
     const attacker = board[from.row][from.col];
@@ -117,6 +129,22 @@ const calculateCenterDistance = (row, col) => {
     }
 
     return minDistance;
+};
+
+/**
+ * Check if two moves are the same
+ * @param {Object} move1 - First move
+ * @param {Object} move2 - Second move
+ * @returns {boolean} True if moves match
+ */
+const movesMatch = (move1, move2) => {
+    if (!move1 || !move2) return false;
+
+    return move1.from.row === move2.from.row &&
+        move1.from.col === move2.from.col &&
+        move1.to.row === move2.to.row &&
+        move1.to.col === move2.to.col &&
+        move1.type === move2.type;
 };
 
 /**
