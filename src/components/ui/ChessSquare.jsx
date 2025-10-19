@@ -28,7 +28,7 @@ const ChessSquare = ({
   return (
     <div
       onClick={() => onClick(row, col)}
-      className={`w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 flex items-center justify-center ${squareColor} ${opacity}
+      className={`w-8 h-8 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 flex items-center justify-center ${squareColor} ${opacity}
                 hover:brightness-110 hover:scale-105 transition-all duration-200 cursor-pointer relative ${ringClass} ${extraEffects}`}
     >
       {piece && (
@@ -39,19 +39,19 @@ const ChessSquare = ({
           }}
         >
           <span
-            className={`text-3xl sm:text-4xl md:text-4xl lg:text-5xl select-none ${pieceColorClass}`}
+            className={`text-2xl sm:text-4xl md:text-4xl lg:text-5xl select-none ${pieceColorClass}`}
             style={pieceStyling}
           >
             {PIECE_SYMBOLS[piece]}
           </span>
           {isHybridPiece(piece) && (
-            <div className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full border-2 border-white shadow-lg animate-pulse"></div>
+            <div className="absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 w-2 h-2 sm:w-3 sm:h-3 md:w-4 md:h-4 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full border-2 border-white shadow-lg animate-pulse"></div>
           )}
         </div>
       )}
       {/* Indicator for empty legal moves */}
       {highlightState.isLegalMove && !piece && !highlightState.combineMode && (
-        <div className="w-3 h-3 sm:w-4 sm:h-4 md:w-5 md:h-5 bg-green-400 rounded-full opacity-70 shadow-lg animate-pulse"></div>
+        <div className="w-2.5 h-2.5 sm:w-4 sm:h-4 md:w-5 md:h-5 bg-green-400 rounded-full opacity-70 shadow-lg animate-pulse"></div>
       )}
       {/* Indicator for capture moves */}
       {isCapture && (

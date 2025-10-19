@@ -274,7 +274,7 @@ const ChessBoard = ({
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-2 sm:p-4 relative overflow-hidden">
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-0 sm:p-4 relative overflow-hidden">
       <div className="absolute inset-0 opacity-20">
         <div className="absolute top-1/4 left-1/4 w-48 h-48 sm:w-96 sm:h-96 bg-purple-500 rounded-full blur-3xl animate-pulse"></div>
         <div
@@ -284,7 +284,7 @@ const ChessBoard = ({
       </div>
 
       <div className="flex flex-col items-center max-w-7xl w-full relative z-10">
-        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 mb-3 sm:mb-4 md:mb-6 drop-shadow-2xl tracking-tight animate-fade-in">
+        <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 mb-2 sm:mb-4 md:mb-6 drop-shadow-2xl tracking-tight animate-fade-in px-2">
           Interactive Chess
         </h1>
 
@@ -292,7 +292,7 @@ const ChessBoard = ({
         {combineMode && <CombineModeIndicator />}
         {deCombine.mode && <DeCombineModeIndicator />}
 
-        <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 lg:gap-8 flex-wrap justify-center w-full px-2 sm:px-4">
+        <div className="flex flex-col lg:flex-row gap-2 sm:gap-6 lg:gap-8 flex-wrap justify-center w-full px-0 sm:px-4">
           {/* Hide captured pieces on mobile, show on large screens */}
           <div className="hidden lg:block">
             <CapturedPieces
@@ -302,7 +302,7 @@ const ChessBoard = ({
             />
           </div>
 
-          <div className="flex flex-col items-center gap-2 sm:gap-3 md:gap-4 flex-1 max-w-full lg:max-w-2xl">
+          <div className="flex flex-col items-center gap-1 sm:gap-3 md:gap-4 flex-1 max-w-full lg:max-w-2xl">
             {/* Timer for top player (Black in normal view, White in flipped view) */}
             {(gameMode === "vsEngine" ||
               (gameMode !== "singlePlayer" && isConnected)) &&
@@ -317,15 +317,15 @@ const ChessBoard = ({
                 />
               )}
 
-            <div className="flex items-center transform transition-all hover:scale-[1.01] sm:hover:scale-[1.02] w-full justify-center">
-              <div className="flex flex-col-reverse gap-0 mr-1 sm:mr-2 md:mr-3">
+            <div className="flex items-center transform transition-all hover:scale-[1.01] sm:hover:scale-[1.02] w-full justify-center px-1 sm:px-0">
+              <div className="flex flex-col-reverse gap-0 mr-0.5 sm:mr-2 md:mr-3">
                 {(isBoardFlipped
                   ? [8, 7, 6, 5, 4, 3, 2, 1]
                   : [1, 2, 3, 4, 5, 6, 7, 8]
                 ).map((rank) => (
                   <div
                     key={rank}
-                    className="h-10 sm:h-12 md:h-14 lg:h-16 flex items-center text-amber-400 text-xs sm:text-sm md:text-base font-bold drop-shadow-lg"
+                    className="h-8 sm:h-12 md:h-14 lg:h-16 flex items-center text-amber-400 text-[10px] sm:text-sm md:text-base font-bold drop-shadow-lg"
                   >
                     {rank}
                   </div>
@@ -334,7 +334,7 @@ const ChessBoard = ({
 
               <div className="flex flex-col items-center max-w-full">
                 <div
-                  className="grid grid-cols-8 gap-0 border-4 sm:border-6 md:border-8 border-gradient-to-br from-amber-700 via-yellow-800 to-amber-900 shadow-2xl rounded-lg overflow-hidden backdrop-blur-sm transition-transform duration-300"
+                  className="grid grid-cols-8 gap-0 border-2 sm:border-4 md:border-8 border-gradient-to-br from-amber-700 via-yellow-800 to-amber-900 shadow-2xl overflow-hidden backdrop-blur-sm transition-transform duration-300"
                   style={{
                     borderImage:
                       "linear-gradient(135deg, #d97706, #b45309, #92400e) 1",
@@ -386,14 +386,14 @@ const ChessBoard = ({
                   )}
                 </div>
 
-                <div className="flex mt-1 sm:mt-2 md:mt-3 gap-0">
+                <div className="flex mt-0.5 sm:mt-2 md:mt-3 gap-0">
                   {(isBoardFlipped
                     ? ["h", "g", "f", "e", "d", "c", "b", "a"]
                     : ["a", "b", "c", "d", "e", "f", "g", "h"]
                   ).map((letter) => (
                     <div
                       key={letter}
-                      className="w-10 sm:w-12 md:w-14 lg:w-16 text-center text-amber-400 text-xs sm:text-sm md:text-base font-bold drop-shadow-lg"
+                      className="w-8 sm:w-12 md:w-14 lg:w-16 text-center text-amber-400 text-[10px] sm:text-sm md:text-base font-bold drop-shadow-lg"
                     >
                       {letter}
                     </div>
@@ -428,7 +428,7 @@ const ChessBoard = ({
         </div>
 
         {/* Show captured pieces on mobile in a compact row */}
-        <div className="lg:hidden flex flex-row gap-4 justify-center items-start mt-4 w-full px-2">
+        <div className="lg:hidden flex flex-row gap-2 sm:gap-4 justify-center items-start mt-2 sm:mt-4 w-full px-1">
           <CapturedPieces
             title="Captured by White"
             pieces={gameState.capturedPieces.black}
