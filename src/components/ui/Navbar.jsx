@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 
-const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty }) => {
+const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty, onDifficultyChange }) => {
   const [receiverIdInput, setReceiverIdInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [testMessage, setTestMessage] = useState("");
@@ -182,17 +182,16 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty }) => {
             {/* Game Mode Indicator */}
             <div className="flex flex-row items-center gap-2 justify-center">
               <span
-                className={`px-2 lg:px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                  gameMode === "singlePlayer"
-                    ? "bg-gray-600 text-gray-100"
-                    : gameMode === "vsEngine"
+                className={`px-2 lg:px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${gameMode === "singlePlayer"
+                  ? "bg-gray-600 text-gray-100"
+                  : gameMode === "vsEngine"
                     ? "bg-purple-600 text-white"
                     : gameMode === "host"
-                    ? "bg-blue-600 text-white"
-                    : gameMode === "guest"
-                    ? "bg-green-600 text-white"
-                    : "bg-gray-600 text-gray-100"
-                }`}
+                      ? "bg-blue-600 text-white"
+                      : gameMode === "guest"
+                        ? "bg-green-600 text-white"
+                        : "bg-gray-600 text-gray-100"
+                  }`}
               >
                 {gameMode === "singlePlayer" && "🎮 Single"}
                 {gameMode === "vsEngine" && `🤖 vs AI`}
@@ -202,23 +201,22 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty }) => {
 
               {gameState && gameMode !== "singlePlayer" && (
                 <span
-                  className={`px-2 py-1 rounded text-xs font-medium whitespace-nowrap ${
-                    gameMode === "vsEngine"
-                      ? gameState.currentTurn === "white"
-                        ? "bg-green-500 text-white animate-pulse"
-                        : "bg-gray-500 text-gray-200"
-                      : gameState.currentTurn === playerColor
+                  className={`px-2 py-1 rounded text-xs font-medium whitespace-nowrap ${gameMode === "vsEngine"
+                    ? gameState.currentTurn === "white"
                       ? "bg-green-500 text-white animate-pulse"
                       : "bg-gray-500 text-gray-200"
-                  }`}
+                    : gameState.currentTurn === playerColor
+                      ? "bg-green-500 text-white animate-pulse"
+                      : "bg-gray-500 text-gray-200"
+                    }`}
                 >
                   {gameMode === "vsEngine"
                     ? gameState.currentTurn === "white"
                       ? "Your Turn"
                       : "AI..."
                     : gameState.currentTurn === playerColor
-                    ? "Your Turn"
-                    : "Wait..."}
+                      ? "Your Turn"
+                      : "Wait..."}
                 </span>
               )}
             </div>
@@ -226,17 +224,32 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty }) => {
 
           {/* P2P Connection Controls */}
           <div className="flex flex-col lg:flex-row flex-wrap items-center justify-center gap-2 w-full lg:w-auto">
-            {!isConnected && !isConnecting && (
+            {!isConnected && !isConnecting && gameMode !== 'vsEngine' && (
               <>
-                {/* Engine Mode Button */}
-                <button
-                  onClick={onStartEngineGame}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 lg:px-4 lg:py-2 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-1.5 text-xs lg:text-sm whitespace-nowrap w-full sm:w-auto"
-                  title="Play against AI"
-                >
-                  <span>🤖</span>
-                  <span>Play vs AI</span>
-                </button>
+                {/* Engine Mode Button with Difficulty Selector */}
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <button
+                    onClick={onStartEngineGame}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 lg:px-4 lg:py-2 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-1.5 text-xs lg:text-sm whitespace-nowrap flex-1 sm:flex-initial"
+                    title="Play against AI"
+                  >
+                    <span>🤖</span>
+                    <span>Play vs AI</span>
+                  </button>
+                  <select
+                    value={aiDifficulty}
+                    onChange={(e) => onDifficultyChange(e.target.value)}
+                    className="bg-purple-700 hover:bg-purple-800 text-white text-xs lg:text-sm px-2 py-1.5 lg:py-2 rounded-lg border border-purple-600 focus:outline-none focus:border-purple-400 transition-colors cursor-pointer"
+                    title="Select AI difficulty"
+                  >
+                    <option value="EASY">🟢 Easy</option>
+                    <option value="MEDIUM">🟡 Medium</option>
+                    <option value="HARD">🔴 Hard</option>
+                  </select>
+                </div>
+
+                {/* Multiplayer Separator */}
+                <div className="hidden lg:block w-px h-8 bg-slate-600"></div>
 
                 {/* Initiate Call Button */}
                 <button
@@ -263,6 +276,20 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty }) => {
                   </button>
                 </div>
               </>
+            )}
+
+            {/* AI Mode Controls - Shown when in vsEngine mode */}
+            {gameMode === 'vsEngine' && (
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex items-center gap-2 bg-purple-900/30 rounded-lg px-3 py-1.5 border border-purple-600/50">
+                  <span className="text-xs font-medium text-purple-300 whitespace-nowrap">AI:</span>
+                  <span className="text-xs font-semibold text-white">
+                    {aiDifficulty === 'EASY' && '🟢 Easy'}
+                    {aiDifficulty === 'MEDIUM' && '🟡 Medium'}
+                    {aiDifficulty === 'HARD' && '🔴 Hard'}
+                  </span>
+                </div>
+              </div>
             )}
 
             {/* Waiting for Connection */}
@@ -372,15 +399,14 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty }) => {
                     <div className="text-slate-300">
                       <span className="font-medium">State:</span>
                       <span
-                        className={`ml-2 px-2 py-1 rounded text-xs font-medium ${
-                          connectionState === "connected"
-                            ? "bg-green-600 text-white"
-                            : connectionState === "connecting"
+                        className={`ml-2 px-2 py-1 rounded text-xs font-medium ${connectionState === "connected"
+                          ? "bg-green-600 text-white"
+                          : connectionState === "connecting"
                             ? "bg-yellow-600 text-white"
                             : connectionState === "failed"
-                            ? "bg-red-600 text-white"
-                            : "bg-gray-600 text-white"
-                        }`}
+                              ? "bg-red-600 text-white"
+                              : "bg-gray-600 text-white"
+                          }`}
                       >
                         {connectionState}
                       </span>
@@ -448,25 +474,24 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty }) => {
                       {messages.map((msg, index) => (
                         <div
                           key={index}
-                          className={`text-xs p-2 rounded ${
-                            msg.type === "sent"
-                              ? "bg-blue-900 text-blue-100"
-                              : msg.type === "received"
+                          className={`text-xs p-2 rounded ${msg.type === "sent"
+                            ? "bg-blue-900 text-blue-100"
+                            : msg.type === "received"
                               ? "bg-green-900 text-green-100"
                               : msg.type === "system"
-                              ? "bg-yellow-900 text-yellow-100"
-                              : "bg-gray-900 text-gray-100"
-                          }`}
+                                ? "bg-yellow-900 text-yellow-100"
+                                : "bg-gray-900 text-gray-100"
+                            }`}
                         >
                           <div className="flex justify-between items-start mb-1">
                             <span className="font-medium">
                               {msg.type === "sent"
                                 ? "→ Sent"
                                 : msg.type === "received"
-                                ? "← Received"
-                                : msg.type === "system"
-                                ? "⚠ System"
-                                : "• Unknown"}
+                                  ? "← Received"
+                                  : msg.type === "system"
+                                    ? "⚠ System"
+                                    : "• Unknown"}
                             </span>
                             <span className="text-slate-400">
                               {msg.timestamp}

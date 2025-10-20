@@ -10,6 +10,15 @@ export const AI_DIFFICULTY = {
 };
 
 // ============================================
+// SEARCH CONFIGURATION (Phase 2B)
+// ============================================
+export const SEARCH_CONFIG = {
+    MAX_SEARCH_TIME_MS: 8000,  // 10 seconds max search time
+    NUM_WORKERS: 4,              // Fixed number of web workers for parallel search
+    TRANSPOSITION_TABLE_SIZE_MB: 500  // Shared TT size
+};
+
+// ============================================
 // PIECE MATERIAL VALUES (Centipawns)
 // ============================================
 export const PIECE_VALUES = {

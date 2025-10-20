@@ -12,10 +12,11 @@ import { canDeCombine, findSpawnSquares, computeLegalAssignments, getHybridCompo
 import { canCastle, executeCastleMove } from '../components/helpers/castlingLogic.js';
 import { zobrist } from './zobrist.js';
 import TranspositionTable, { FLAG_EXACT, FLAG_LOWER, FLAG_UPPER } from './TranspositionTable.js';
+import { SEARCH_CONFIG } from './constants.js';
 
-// Global transposition table (290 MB)
+// Global transposition table (256 MB as per Phase 2B)
 // Created once and reused across all searches
-const transpositionTable = new TranspositionTable(290);
+const transpositionTable = new TranspositionTable(SEARCH_CONFIG.TRANSPOSITION_TABLE_SIZE_MB);
 
 // Node counter for performance analysis
 let nodesSearched = 0;
@@ -147,7 +148,7 @@ export const findBestMove = (gameState, depth) => {
  * @param {BigInt} positionHash - Zobrist hash of current position
  * @returns {number} Position evaluation score
  */
-const alphaBetaSearch = (board, currentTurn, depth, alpha, beta, castlingRights, positionHash) => {
+export const alphaBetaSearch = (board, currentTurn, depth, alpha, beta, castlingRights, positionHash) => {
     // Increment node counter
     nodesSearched++;
 
@@ -446,7 +447,7 @@ export const getAllLegalMoves = (board, color, castlingRights) => {
  * @param {Object} castlingRights - Current castling rights
  * @returns {Object} { newBoard, newCastlingRights }
  */
-const applyMove = (board, move, currentTurn, castlingRights) => {
+export const applyMove = (board, move, currentTurn, castlingRights) => {
     let newBoard;
 
     switch (move.type) {
@@ -624,4 +625,54 @@ export const getTranspositionTableStats = () => {
 export const clearTranspositionTable = () => {
     transpositionTable.clear();
     console.log('Transposition table cleared');
+};
+
+/**
+ * Find best move using parallel search with web workers (Phase 2B)
+ * Falls back to single-threaded search if workers unavailable
+ * 
+ * @param {Object} gameState - Complete game state
+ * @param {number} depth - Search depth
+ * @returns {Promise<Object|null>} Best move object or null
+ */
+export const findBestMoveParallel = async (gameState, depth) => {
+    // Dynamically import WorkerManager to avoid circular dependencies
+    const { default: workerManager } = await import('./WorkerManager.js');
+
+    // Try to initialize workers if not already done
+    const workersAvailable = await workerManager.initialize();
+
+    if (!workersAvailable) {
+        console.log('⚠️  Workers not available, falling back to single-threaded search');
+        return findBestMove(gameState, depth);
+    }
+
+    const { board, currentTurn, castlingRights } = gameState;
+
+    // Generate and order all legal moves
+    const allMoves = getAllLegalMoves(board, currentTurn, castlingRights);
+
+    if (allMoves.length === 0) {
+        return null; // No legal moves
+    }
+
+    const orderedMoves = orderMoves(board, allMoves, currentTurn);
+
+    try {
+        // Search in parallel
+        const result = await workerManager.searchParallel({
+            board,
+            currentTurn,
+            castlingRights,
+            moves: orderedMoves,
+            depth
+        });
+
+        return result.bestMove;
+
+    } catch (error) {
+        console.error('❌ Parallel search failed:', error);
+        console.log('⚠️  Falling back to single-threaded search');
+        return findBestMove(gameState, depth);
+    }
 };

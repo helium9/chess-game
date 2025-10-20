@@ -424,6 +424,23 @@ class TranspositionTable {
     resetStats() {
         this.stats = { hits: 0, misses: 0, collisions: 0, stores: 0 };
     }
+
+    /**
+     * Get the underlying SharedArrayBuffer
+     * Used by WorkerManager to pass shared buffer to workers
+     * @returns {SharedArrayBuffer|ArrayBuffer} The buffer
+     */
+    getBuffer() {
+        return this.buffer;
+    }
+
+    /**
+     * Check if this TT uses a shared buffer
+     * @returns {boolean} True if using SharedArrayBuffer
+     */
+    isSharedBuffer() {
+        return this.isShared;
+    }
 }
 
 export default TranspositionTable;

@@ -4,7 +4,7 @@ import Navbar from "./components/ui/Navbar.jsx";
 import useWebRTC from "./hooks/useWebRTC.js";
 import { createInitialGameState, makeMove } from "./utils/gameState.js";
 import { COLORS } from "./utils/constants.js";
-import { findBestMove } from "./ai/alphaBeta.js";
+import { findBestMove, findBestMoveParallel } from "./ai/alphaBeta.js";
 import { AI_DIFFICULTY } from "./ai/constants.js";
 import "./App.css";
 
@@ -15,7 +15,7 @@ function App() {
 
   // Engine mode state
   const [isAiThinking, setIsAiThinking] = useState(false);
-  const aiDifficulty = useRef(AI_DIFFICULTY.MEDIUM); // Hardcoded to MEDIUM for now
+  const [aiDifficulty, setAiDifficulty] = useState('MEDIUM'); // 'EASY', 'MEDIUM', or 'HARD'
 
   // Timer state - using ref to avoid re-renders
   const timerStateRef = useRef({
@@ -101,12 +101,12 @@ function App() {
     try {
       console.log("AI is thinking...");
 
-      // Wrap in Promise to allow UI updates during calculation
-      const bestMove = await new Promise((resolve) => {
-        setTimeout(() => {
-          resolve(findBestMove(currentGameState, aiDifficulty.current.depth));
-        }, 0);
-      });
+      // Use parallel search with web workers (Phase 2B)
+      // Falls back to single-threaded if workers unavailable
+      const bestMove = await findBestMoveParallel(
+        currentGameState,
+        AI_DIFFICULTY[aiDifficulty].depth
+      );
 
       if (bestMove) {
         console.log("AI found best move:", bestMove);
@@ -434,7 +434,8 @@ function App() {
         webRTC={webRTC}
         gameState={gameState}
         onStartEngineGame={startEngineGame}
-        aiDifficulty={aiDifficulty.current}
+        aiDifficulty={aiDifficulty}
+        onDifficultyChange={setAiDifficulty}
       />
 
       {/* Reconnection Status Overlay */}
