@@ -15,7 +15,7 @@ function App() {
 
   // Engine mode state
   const [isAiThinking, setIsAiThinking] = useState(false);
-  const [aiDifficulty, setAiDifficulty] = useState('MEDIUM'); // 'EASY', 'MEDIUM', or 'HARD'
+  const [aiDifficulty, setAiDifficulty] = useState("MEDIUM"); // 'EASY', 'MEDIUM', or 'HARD'
 
   // Timer state - using ref to avoid re-renders
   const timerStateRef = useRef({
@@ -68,11 +68,12 @@ function App() {
 
     setGameState(newGameState);
 
-    // Check if it's AI's turn (engine mode + BLACK to move)
+    // Check if it's AI's turn (engine mode + BLACK to move + game not over)
     if (
       webRTC.gameMode === "vsEngine" &&
       newGameState.currentTurn === COLORS.BLACK &&
-      !isAiThinking
+      !isAiThinking &&
+      !newGameState.gameStatus?.isGameOver
     ) {
       makeAiMove(newGameState);
     }

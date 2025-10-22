@@ -9,16 +9,19 @@ const Timer = React.memo(
     gameMode,
     isConnected,
     isReconnecting,
+    onTimeout, // New callback for when timer runs out
+    isGameOver = false, // New prop to stop timer when game ends
   }) => {
     const [displayTime, setDisplayTime] = useState(180000); // 3 minutes in ms
 
     useEffect(() => {
-      // Don't run timer logic if in single player mode, not connected (for multiplayer), or reconnecting
+      // Don't run timer logic if in single player mode, not connected (for multiplayer), reconnecting, or game is over
       // Timer is visible in vsEngine mode and multiplayer modes
       if (
         gameMode === "singlePlayer" ||
         (gameMode !== "vsEngine" && !isConnected) ||
-        isReconnecting
+        isReconnecting ||
+        isGameOver
       ) {
         // Freeze timer - read current value from ref
         const timeToDisplay =
@@ -53,9 +56,10 @@ const Timer = React.memo(
 
         setDisplayTime(Math.max(0, newTime));
 
-        // If time runs out, we could trigger a timeout here
-        if (newTime <= 0) {
+        // If time runs out, trigger timeout callback
+        if (newTime <= 0 && onTimeout) {
           console.log(`${color} ran out of time!`);
+          onTimeout(color);
         }
       }, 100); // Update every 100ms for smooth countdown
 
@@ -67,6 +71,8 @@ const Timer = React.memo(
       isConnected,
       isReconnecting,
       timerStateRef,
+      isGameOver,
+      onTimeout,
     ]);
 
     // Format time as MM:SS.d

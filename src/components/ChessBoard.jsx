@@ -10,6 +10,7 @@ import {
 import { COLORS, getPieceColor } from "../utils/constants.js";
 import { announceTurn, capitalizeColor } from "./helpers/messageHelpers.js";
 import { getAllLegalMoves } from "../ai/alphaBeta.js";
+import { getGameStatus } from "../utils/gameStatus.js";
 import { useCombineMode } from "./hooks/useCombineMode.js";
 import { useDeCombineMode } from "./hooks/useDeCombineMode.js";
 import { usePromotion } from "./hooks/usePromotion.js";
@@ -64,6 +65,87 @@ const ChessBoard = ({
   // Determine if board should be flipped (Black player in multiplayer)
   const isBoardFlipped =
     gameMode !== "singlePlayer" && playerColor === COLORS.BLACK;
+
+  // Handle timer timeout
+  const handleTimeout = (timedOutColor) => {
+    // Only trigger once
+    if (gameState.gameStatus?.isGameOver) return;
+
+    // Update timer ref to show 0:00.0 for the timed out player
+    if (timerStateRef) {
+      if (timedOutColor === COLORS.WHITE) {
+        timerStateRef.current.whiteTime = 0;
+      } else {
+        timerStateRef.current.blackTime = 0;
+      }
+    }
+
+    const winner = timedOutColor === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE;
+    const newGameState = {
+      ...gameState,
+      gameStatus: {
+        isCheck: false,
+        isCheckmate: false,
+        isStalemate: false,
+        isGameOver: true,
+        winner: winner,
+        timeoutWinner: winner,
+      },
+    };
+    updateGameState(newGameState);
+    setMessage(`Time out! ${capitalizeColor(winner)} wins!`);
+  };
+
+  // Check game status after state changes
+  useEffect(() => {
+    const checkGameStatus = async () => {
+      // Skip if game is already over
+      if (gameState.gameStatus?.isGameOver) {
+        return;
+      }
+
+      const status = await getGameStatus(gameState);
+
+      // Update game state with new status if changed
+      if (
+        status.isCheckmate !== gameState.gameStatus?.isCheckmate ||
+        status.isCheck !== gameState.gameStatus?.isCheck ||
+        status.isStalemate !== gameState.gameStatus?.isStalemate
+      ) {
+        const newGameState = {
+          ...gameState,
+          gameStatus: status,
+        };
+        updateGameState(newGameState);
+
+        // Update message based on priority: checkmate > stalemate > check > normal
+        if (status.isCheckmate) {
+          const winnerColor = capitalizeColor(status.winner);
+          setMessage(`Checkmate! ${winnerColor} wins!`);
+        } else if (status.isStalemate) {
+          setMessage("Stalemate! The game is a draw.");
+        } else if (status.isCheck) {
+          setMessage(`${capitalizeColor(gameState.currentTurn)} is in check!`);
+        } else {
+          // Only update to normal message if not in any special state
+          setMessage(`${capitalizeColor(gameState.currentTurn)} to move`);
+        }
+      } else if (gameState.gameStatus) {
+        // Status hasn't changed, but make sure message reflects current status
+        if (gameState.gameStatus.isCheckmate) {
+          const winnerColor = capitalizeColor(gameState.gameStatus.winner);
+          setMessage(`Checkmate! ${winnerColor} wins!`);
+        } else if (gameState.gameStatus.isStalemate) {
+          setMessage("Stalemate! The game is a draw.");
+        } else if (gameState.gameStatus.isCheck) {
+          setMessage(`${capitalizeColor(gameState.currentTurn)} is in check!`);
+        }
+        // Don't reset to normal message if we're in check
+      }
+    };
+
+    checkGameStatus();
+  }, [gameState.board, gameState.currentTurn]);
 
   // Move validation for multiplayer mode using existing utilities
   const canMakeMove = (piece, fromSquare = null) => {
@@ -171,6 +253,12 @@ const ChessBoard = ({
 
   // Route square clicks with move validation
   const handleSquareClick = (row, col) => {
+    // Prevent moves if game is over
+    if (gameState.gameStatus?.isGameOver) {
+      setMessage("Game is over. Please reset to start a new game.");
+      return;
+    }
+
     const piece = gameState.board[row][col];
 
     // For piece selection, check if we can move this piece
@@ -194,6 +282,17 @@ const ChessBoard = ({
   };
 
   const handleCombineToggle = () => {
+    if (gameState.gameStatus?.isGameOver) {
+      setMessage("Game is over. Please reset to start a new game.");
+      return;
+    }
+
+    // Disable combine when in check
+    if (gameState.gameStatus?.isCheck) {
+      setMessage("Cannot combine pieces while in check!");
+      return;
+    }
+
     if (combineMode) {
       exitCombineMode();
     } else {
@@ -204,6 +303,17 @@ const ChessBoard = ({
   };
 
   const handleDeCombineToggle = () => {
+    if (gameState.gameStatus?.isGameOver) {
+      setMessage("Game is over. Please reset to start a new game.");
+      return;
+    }
+
+    // Disable decombine when in check
+    if (gameState.gameStatus?.isCheck) {
+      setMessage("Cannot de-combine pieces while in check!");
+      return;
+    }
+
     if (deCombine.mode) {
       exitDeCombineMode();
     } else {
@@ -314,6 +424,8 @@ const ChessBoard = ({
                   gameMode={gameMode}
                   isConnected={isConnected}
                   isReconnecting={isReconnecting}
+                  onTimeout={handleTimeout}
+                  isGameOver={gameState.gameStatus?.isGameOver || false}
                 />
               )}
 
@@ -413,6 +525,8 @@ const ChessBoard = ({
                   gameMode={gameMode}
                   isConnected={isConnected}
                   isReconnecting={isReconnecting}
+                  onTimeout={handleTimeout}
+                  isGameOver={gameState.gameStatus?.isGameOver || false}
                 />
               )}
           </div>

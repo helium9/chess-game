@@ -346,14 +346,30 @@ export const useMoveHandler = (
 
           setSelectedSquare({ row, col });
           setLegalMoves(safeMoves);
-          setMessage(
-            `Selected ${PIECE_SYMBOLS[piece]}. Click a highlighted square to move.`
-          );
+
+          // Check if king is in check and preserve that in the message
+          const inCheck = isInCheck(gameState.board, gameState.currentTurn);
+          if (inCheck) {
+            setMessage(`CHECK! Move your King to safety or block the attack.`);
+          } else {
+            setMessage(
+              `Selected ${PIECE_SYMBOLS[piece]}. Click a highlighted square to move.`
+            );
+          }
         } else {
           // Deselect
           setSelectedSquare(null);
           setLegalMoves([]);
-          setMessage(announceTurn(gameState.currentTurn));
+
+          // Check if king is still in check after deselect
+          const inCheck = isInCheck(gameState.board, gameState.currentTurn);
+          if (inCheck) {
+            setMessage(
+              `${capitalizeColor(gameState.currentTurn)} is in check!`
+            );
+          } else {
+            setMessage(announceTurn(gameState.currentTurn));
+          }
         }
       } else {
         // No square selected yet
@@ -403,9 +419,16 @@ export const useMoveHandler = (
 
           setSelectedSquare({ row, col });
           setLegalMoves(safeMoves);
-          setMessage(
-            `Selected ${PIECE_SYMBOLS[piece]}. Click a highlighted square to move.`
-          );
+
+          // Check if king is in check and preserve that in the message
+          const inCheck = isInCheck(gameState.board, gameState.currentTurn);
+          if (inCheck) {
+            setMessage(`CHECK! Move your King to safety or block the attack.`);
+          } else {
+            setMessage(
+              `Selected ${PIECE_SYMBOLS[piece]}. Click a highlighted square to move.`
+            );
+          }
         }
       }
     },
