@@ -2,28 +2,39 @@
 
 Welcome to the comprehensive documentation for the Chess Piece Combination Game project. This is a unique chess variant that introduces piece combination mechanics, allowing players to merge and split pieces during gameplay.
 
-## Documentation Index
+## 📖 Start Here
+
+**→ [Complete Documentation Index](./00-INDEX.md)** - Organized navigation guide
+
+## Core Documentation
 
 1. **[Project Overview](./01-PROJECT-OVERVIEW.md)** - High-level introduction, features, and project goals
-2. **[Architecture Guide](./02-ARCHITECTURE.md)** - System design, patterns, and structure
+2. **[System Architecture](./architecture/system-architecture.md)** - System design, patterns, and structure
 3. **[Core Systems](./03-CORE-SYSTEMS.md)** - GameState, Action, History, and Engine
 4. **[Game Mechanics](./04-GAME-MECHANICS.md)** - Rules, combinations, movements, and gameplay
-5. **[Component Guide](./05-COMPONENTS.md)** - React components and UI structure
-6. **[Utilities & Helpers](./06-UTILITIES.md)** - Helper functions and utility modules
-7. **[Known Issues & Bugs](./07-ISSUES-AND-BUGS.md)** - Current bugs and limitations
-8. **[Improvement Roadmap](./08-IMPROVEMENTS.md)** - Scope for enhancements and features
-9. **[Developer Guide](./09-DEVELOPER-GUIDE.md)** - Setup, workflow, and contribution guidelines
-10. **[API Reference](./10-API-REFERENCE.md)** - Function and class references
+5. **[Known Issues & Bugs](./07-ISSUES-AND-BUGS.md)** - Current bugs and limitations
+6. **[Improvement Roadmap](./08-IMPROVEMENTS.md)** - Scope for enhancements and features
+7. **[Developer Guide](./development/developer-guide.md)** - Setup, workflow, and contribution guidelines
+
+## 📂 Documentation Organization
+
+Documentation is now organized by category for easier navigation:
+
+- **`features/`** - Game features (timer, game modes, etc.)
+- **`ai/`** - AI engine documentation and optimization
+- **`webrtc/`** - Multiplayer networking documentation
+- **`architecture/`** - System design and architecture
+- **`development/`** - Developer guides and workflows
 
 ## Quick Start for New Developers
 
-If you're new to this project, we recommend reading the documentation in this order:
+If you're new to this project, we recommend reading in this order:
 
-1. Start with **Project Overview** to understand what the game does
-2. Read **Game Mechanics** to understand the unique combination rules
-3. Review **Architecture Guide** to understand the codebase structure
-4. Check **Known Issues** to be aware of current limitations
-5. Refer to **Developer Guide** when ready to contribute
+1. Start with **[Project Overview](./01-PROJECT-OVERVIEW.md)** to understand what the game does
+2. Read **[Game Mechanics](./04-GAME-MECHANICS.md)** to understand the unique combination rules
+3. Review **[System Architecture](./architecture/system-architecture.md)** to understand the codebase structure
+4. Check **[Known Issues](./07-ISSUES-AND-BUGS.md)** to be aware of current limitations
+5. Refer to **[Developer Guide](./development/developer-guide.md)** when ready to contribute
 
 ## Project Status
 
@@ -92,16 +103,20 @@ This game allows certain chess pieces to merge together, creating hybrid pieces 
 
 - **Bug Reports**: See [Known Issues](./07-ISSUES-AND-BUGS.md)
 - **Feature Requests**: See [Improvement Roadmap](./08-IMPROVEMENTS.md)
-- **Development Questions**: See [Developer Guide](./09-DEVELOPER-GUIDE.md)
+- **Development Questions**: See [Developer Guide](./development/developer-guide.md)
+- **AI Questions**: See [AI Quick Start](./ai/quick-start.md)
+- **WebRTC Issues**: See [WebRTC Debugging](./webrtc/disconnection-debugging.md)
 
 ## Contributing
 
 This project is in active development. Before contributing:
 
-1. Read the [Developer Guide](./09-DEVELOPER-GUIDE.md)
+1. Read the [Developer Guide](./development/developer-guide.md)
 2. Check [Known Issues](./07-ISSUES-AND-BUGS.md) for current bugs
 3. Review [Improvement Roadmap](./08-IMPROVEMENTS.md) for planned features
 
 ---
 
-**Note**: This is a proof-of-concept project exploring unique chess mechanics. The codebase is designed for experimentation and may contain incomplete features or known issues.
+**Note**: This is a proof-of-concept project exploring unique chess mechanics with advanced features like piece combination, AI opponents, and real-time multiplayer. The codebase is designed for experimentation and may contain incomplete features or known issues.
+
+For complete navigation, see **[Documentation Index](./00-INDEX.md)**.

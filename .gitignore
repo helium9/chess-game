@@ -22,10 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+*.cursor
+*.codacy
 
 
 #Ignore vscode AI rules
-.github/instructions/codacy.instructions.md
+*.github
 
 # Environment variables
 .env*
