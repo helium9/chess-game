@@ -220,6 +220,22 @@ const useWebRTC = () => {
         }
     }, [isConnected]);
 
+    // Send debug message to peer
+    const sendDebugMessage = useCallback((message) => {
+        if (signalingService.current && isConnected) {
+            return signalingService.current.sendDebugMessage(message);
+        }
+        return false;
+    }, [isConnected]);
+
+    // Send ping for latency measurement
+    const measureLatency = useCallback(() => {
+        if (signalingService.current && isConnected) {
+            return signalingService.current.sendPing();
+        }
+        return null;
+    }, [isConnected]);
+
     // Send disconnect notification
     const sendDisconnectNotification = useCallback(() => {
         if (signalingService.current && isConnected) {
@@ -284,6 +300,8 @@ const useWebRTC = () => {
         cancelCall,
         sendGameState,
         sendMove,
+        sendDebugMessage,
+        measureLatency,
         sendDisconnectNotification,
         setGracefulDisconnectFlag,
         setOnMessageReceived,

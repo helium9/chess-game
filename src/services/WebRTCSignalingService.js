@@ -38,6 +38,9 @@ class WebRTCSignalingService {
         this.connectionLossTimeout = null; // Debounce multiple connection loss events
         this.reconnectionTimeout = null; // Timeout for reconnection attempts
         this.gracefulDisconnectReceived = false;
+
+        // Latency measurement
+        this.pendingPings = new Map(); // Store ping timestamps for latency calculation
     }
 
     // Initialize WebRTC peer connection
@@ -186,7 +189,6 @@ class WebRTCSignalingService {
 
         channel.onmessage = (event) => {
             const message = JSON.parse(event.data);
-            // console.log('Received message:', message);
 
             // Update heartbeat timestamp for ANY message received (indicates connection is alive)
             this.lastHeartbeatReceived = Date.now();
@@ -198,6 +200,12 @@ class WebRTCSignalingService {
                 this.sendHeartbeatResponse();
             } else if (message.type === 'heartbeatResponse') {
                 // console.log('Heartbeat response received');
+            } else if (message.type === 'ping') {
+                // Handle latency measurement ping - send pong back immediately
+                this.sendPong(message.pingId);
+            } else if (message.type === 'pong') {
+                // Handle latency measurement pong - calculate latency and forward result
+                this.handlePongReceived(message.pingId);
             } else if (message.type === 'disconnect' && message.data?.type === 'gracefulDisconnect') {
                 // console.log('Received graceful disconnect notification from peer');
                 // Set flag to prevent reconnection attempts
@@ -810,6 +818,24 @@ class WebRTCSignalingService {
         }
     }
 
+    // Send debug/test message through data channel
+    sendDebugMessage(message) {
+        if (this.dataChannel && this.dataChannel.readyState === 'open') {
+            const debugMsg = {
+                type: 'debug',
+                data: message,
+                timestamp: Date.now()
+            };
+            this.dataChannel.send(JSON.stringify(debugMsg));
+            // Update heartbeat timestamp since we successfully sent data (connection is alive)
+            this.lastHeartbeatReceived = Date.now();
+            return true;
+        } else {
+            console.warn('Data channel not ready for sending');
+            return false;
+        }
+    }
+
     // Request current game state from peer (used after reconnection)
     requestGameStateSync() {
         if (this.dataChannel && this.dataChannel.readyState === 'open') {
@@ -821,6 +847,81 @@ class WebRTCSignalingService {
             // Update heartbeat timestamp since we successfully sent data (connection is alive)
             this.lastHeartbeatReceived = Date.now();
         }
+    }
+
+    // Send ping for latency measurement
+    sendPing() {
+        if (this.dataChannel && this.dataChannel.readyState === 'open') {
+            const pingId = Date.now().toString() + Math.random().toString(36).substring(7);
+            const timestamp = Date.now();
+
+            // Store the ping timestamp
+            this.pendingPings.set(pingId, timestamp);
+
+            // Send ping message
+            this.dataChannel.send(JSON.stringify({
+                type: 'ping',
+                pingId: pingId,
+                timestamp: timestamp
+            }));
+
+            // Clean up old pings after 5 seconds (in case pong never arrives)
+            setTimeout(() => {
+                if (this.pendingPings.has(pingId)) {
+                    this.pendingPings.delete(pingId);
+                    // Notify timeout
+                    if (this.onLatencyMeasured) {
+                        this.onLatencyMeasured({ success: false, error: 'Timeout' });
+                    }
+                }
+            }, 5000);
+
+            return pingId;
+        }
+        return null;
+    }
+
+    // Send pong in response to ping
+    sendPong(pingId) {
+        if (this.dataChannel && this.dataChannel.readyState === 'open') {
+            this.dataChannel.send(JSON.stringify({
+                type: 'pong',
+                pingId: pingId,
+                timestamp: Date.now()
+            }));
+        }
+    }
+
+    // Handle pong received
+    handlePongReceived(pingId) {
+        if (this.pendingPings.has(pingId)) {
+            const pingTimestamp = this.pendingPings.get(pingId);
+            const now = Date.now();
+            const rtt = now - pingTimestamp;
+            const latency = rtt / 2; // Latency is half of RTT
+
+            // Clean up
+            this.pendingPings.delete(pingId);
+
+            // Forward latency result through normal message channel
+            if (this.onDataChannelMessage) {
+                this.onDataChannelMessage({
+                    type: 'latencyResult',
+                    data: {
+                        success: true,
+                        latency: latency,
+                        rtt: rtt
+                    },
+                    timestamp: now
+                });
+            }
+        }
+    }
+
+    // Deprecated: Set callback for latency measurement
+    // Latency results are now forwarded through onDataChannelMessage
+    setLatencyMeasuredCallback(callback) {
+        // Method kept for backwards compatibility but not used
     }
 
     // Disconnect and cleanup
