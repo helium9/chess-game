@@ -185,8 +185,15 @@ class WebRTCSignalingService {
         };
 
         channel.onmessage = (event) => {
+            const receiveTimestamp = Date.now();
             const message = JSON.parse(event.data);
             // console.log('Received message:', message);
+
+            // Log latency for game state and move messages
+            if (message.timestamp && (message.type === 'gameState' || message.type === 'move')) {
+                const latency = receiveTimestamp - message.timestamp;
+                console.log(`[WebRTC Latency] ${message.type} received - Latency: ${latency}ms (sent: ${message.timestamp}, received: ${receiveTimestamp})`);
+            }
 
             // Update heartbeat timestamp for ANY message received (indicates connection is alive)
             this.lastHeartbeatReceived = Date.now();
@@ -783,11 +790,13 @@ class WebRTCSignalingService {
     // Send game state through data channel
     sendGameState(gameState) {
         if (this.dataChannel && this.dataChannel.readyState === 'open') {
+            const sendTimestamp = Date.now();
             this.dataChannel.send(JSON.stringify({
                 type: 'gameState',
                 data: gameState,
-                timestamp: Date.now()
+                timestamp: sendTimestamp
             }));
+            console.log('[WebRTC Latency] Game state sent at:', sendTimestamp);
             // Update heartbeat timestamp since we successfully sent data (connection is alive)
             this.lastHeartbeatReceived = Date.now();
         } else {
@@ -798,11 +807,13 @@ class WebRTCSignalingService {
     // Send move through data channel
     sendMove(move) {
         if (this.dataChannel && this.dataChannel.readyState === 'open') {
+            const sendTimestamp = Date.now();
             this.dataChannel.send(JSON.stringify({
                 type: 'move',
                 data: move,
-                timestamp: Date.now()
+                timestamp: sendTimestamp
             }));
+            console.log('[WebRTC Latency] Move sent at:', sendTimestamp);
             // Update heartbeat timestamp since we successfully sent data (connection is alive)
             this.lastHeartbeatReceived = Date.now();
         } else {
