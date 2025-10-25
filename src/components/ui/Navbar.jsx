@@ -5,6 +5,8 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty, onDifficul
   const [messages, setMessages] = useState([]);
   const [testMessage, setTestMessage] = useState("");
   const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [latency, setLatency] = useState(null);
+  const [measuringLatency, setMeasuringLatency] = useState(false);
 
   const {
     isConnecting,
@@ -20,13 +22,37 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty, onDifficul
     cancelCall,
     sendGameState,
     sendMove,
-    setOnMessageReceived,
+    sendDebugMessage,
+    measureLatency,
   } = webRTC;
 
-  // Set up message handling
+  // Set up message handling via custom event (to avoid conflicts with App.jsx)
   useEffect(() => {
-    setOnMessageReceived((message) => {
-      // console.log('Received message:', message);
+    const handleWebRTCMessage = (event) => {
+      const message = event.detail;
+
+      // Handle latency result specially
+      if (message.type === 'latencyResult') {
+        setMeasuringLatency(false);
+        if (message.data.success) {
+          setLatency(message.data.latency);
+          setMessages((prev) => [
+            ...prev,
+            {
+              type: "system",
+              data: {
+                type: "latency",
+                latency: message.data.latency.toFixed(2),
+                rtt: message.data.rtt.toFixed(2)
+              },
+              timestamp: new Date().toLocaleTimeString(),
+            },
+          ]);
+        }
+        return;
+      }
+
+      // Handle all other messages
       setMessages((prev) => [
         ...prev,
         {
@@ -35,8 +61,14 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty, onDifficul
           timestamp: new Date().toLocaleTimeString(),
         },
       ]);
-    });
-  }, [setOnMessageReceived]);
+    };
+
+    window.addEventListener('webrtc-message', handleWebRTCMessage);
+
+    return () => {
+      window.removeEventListener('webrtc-message', handleWebRTCMessage);
+    };
+  }, []);
 
   // Monitor connection state changes and reset UI when peer disconnects
   useEffect(() => {
@@ -47,7 +79,6 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty, onDifficul
     ) {
       // Reset UI state when connection is lost
       if (connectionState === "disconnected") {
-        // console.log('Peer disconnected - resetting UI');
         // Add a disconnection message to the log
         setMessages((prev) => [
           ...prev,
@@ -133,16 +164,20 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty, onDifficul
       sender: "local",
     };
 
-    sendGameState(message);
-    setMessages((prev) => [
-      ...prev,
-      {
-        type: "sent",
-        data: message,
-        timestamp: new Date().toLocaleTimeString(),
-      },
-    ]);
-    setTestMessage("");
+    // Use the new sendDebugMessage method
+    const sent = sendDebugMessage(message);
+
+    if (sent) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          type: "sent",
+          data: { type: "debug", data: message },
+          timestamp: new Date().toLocaleTimeString(),
+        },
+      ]);
+      setTestMessage("");
+    }
   };
 
   const sendTestMove = () => {
@@ -162,6 +197,15 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty, onDifficul
         timestamp: new Date().toLocaleTimeString(),
       },
     ]);
+  };
+
+  const handleMeasureLatency = () => {
+    setMeasuringLatency(true);
+    const pingId = measureLatency();
+    if (!pingId) {
+      setMeasuringLatency(false);
+      alert("Failed to send ping");
+    }
   };
 
   const copyToClipboard = () => {
@@ -448,6 +492,43 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty, onDifficul
                   >
                     Send Test Move (e2→e4)
                   </button>
+                </div>
+
+                {/* Latency Measurement */}
+                <div className="space-y-2">
+                  <h5 className="text-sm font-medium text-slate-300">
+                    Latency Measurement
+                  </h5>
+                  <div className="bg-slate-800 p-3 rounded-lg">
+                    {latency !== null && (
+                      <div className="text-center mb-2">
+                        <span className="text-2xl font-bold text-green-400">
+                          {latency.toFixed(2)} ms
+                        </span>
+                        <p className="text-xs text-slate-400 mt-1">Current Latency</p>
+                      </div>
+                    )}
+                    <button
+                      onClick={handleMeasureLatency}
+                      disabled={measuringLatency}
+                      className="w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white px-3 py-2 rounded font-medium transition-colors duration-200 text-sm flex items-center justify-center gap-2"
+                    >
+                      {measuringLatency ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>Measuring...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>📡</span>
+                          <span>Measure Latency</span>
+                        </>
+                      )}
+                    </button>
+                    <p className="text-xs text-slate-400 mt-2 text-center">
+                      Calculates RTT/2 (one-way latency)
+                    </p>
+                  </div>
                 </div>
               </div>
 

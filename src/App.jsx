@@ -364,7 +364,14 @@ function App() {
   // Set up message handler
   useEffect(() => {
     if (webRTC.setOnMessageReceived) {
-      webRTC.setOnMessageReceived(handleMessage);
+      webRTC.setOnMessageReceived((message) => {
+        // Always call the main handler first
+        handleMessage(message);
+
+        // Forward ALL messages to Navbar's debug panel via a custom event
+        // This allows Navbar to display messages without conflicting with App's handler
+        window.dispatchEvent(new CustomEvent('webrtc-message', { detail: message }));
+      });
     }
   }, [webRTC.setOnMessageReceived, handleMessage]);
 
