@@ -38,13 +38,18 @@ class TranspositionTable {
      */
     constructor(sizeInMB = 128, sharedBuffer = null) {
         const bytesPerEntry = ENTRY_SIZE * 4; // 4 bytes per Int32
-        const numEntries = Math.floor((sizeInMB * 1024 * 1024) / bytesPerEntry);
 
         // Use shared buffer if provided, otherwise create new one
         if (sharedBuffer) {
             this.buffer = sharedBuffer;
             this.isShared = true;
+            // Calculate numEntries from actual buffer size
+            this.numEntries = Math.floor(this.buffer.byteLength / bytesPerEntry);
         } else {
+            // Calculate size for new buffer
+            const numEntries = Math.floor((sizeInMB * 1024 * 1024) / bytesPerEntry);
+            this.numEntries = numEntries;
+
             // Try to create SharedArrayBuffer (for future web workers)
             // Fall back to regular ArrayBuffer if SharedArrayBuffer is unavailable
             try {
@@ -63,12 +68,11 @@ class TranspositionTable {
         }
 
         this.table = new Int32Array(this.buffer);
-        this.numEntries = numEntries;
 
         // For non-power-of-2 sizes, we must use modulo instead of bitwise mask
         // Mask only works for powers of 2 (e.g., 2^20 = 1,048,576)
-        this.useMask = this.isPowerOf2(numEntries);
-        this.mask = numEntries - 1;  // Only valid if numEntries is power of 2
+        this.useMask = this.isPowerOf2(this.numEntries);
+        this.mask = this.numEntries - 1;  // Only valid if numEntries is power of 2
 
         // Statistics (optional, for debugging)
         this.stats = {
@@ -78,7 +82,12 @@ class TranspositionTable {
             stores: 0
         };
 
-        console.log(`TranspositionTable initialized: ${sizeInMB}MB, ${numEntries} entries (${this.isShared ? 'shared' : 'single-threaded'})`);
+        const sizeInMBActual = (this.buffer.byteLength / (1024 * 1024)).toFixed(2);
+        if (sharedBuffer) {
+            console.log(`TranspositionTable initialized: ${sizeInMBActual}MB, ${this.numEntries} entries (wrapped shared buffer)`);
+        } else {
+            console.log(`TranspositionTable initialized: ${sizeInMBActual}MB, ${this.numEntries} entries (${this.isShared ? 'created new SharedArrayBuffer' : 'single-threaded ArrayBuffer'})`);
+        }
     }
 
     /**
