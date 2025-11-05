@@ -121,6 +121,7 @@ npm run preview  # Preview build
 - **Tailwind CSS** 3.4.18 - Styling
 - **WebRTC** - Peer-to-peer multiplayer
 - **Firebase Firestore** - Signaling for multiplayer
+- **Azure + Coturn** - TURN server for NAT traversal
 - **Custom AI Engine** - Alpha-beta pruning with transposition tables
 
 ---
@@ -144,10 +145,45 @@ src/
 
 ## Multiplayer Setup
 
+### Firebase Configuration
+
 1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com/)
 2. Enable Firestore Database
-3. Update `src/config/firebase.js` with your Firebase config
-4. (Optional) Add TURN server credentials to `.env` for better connectivity
+3. Update `src/config/firebase.js` with your Firebase config:
+
+```javascript
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_AUTH_DOMAIN",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_STORAGE_BUCKET",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID",
+};
+```
+
+### TURN Server (Azure + Coturn)
+
+For reliable connections across NATs and firewalls, the project uses Coturn TURN server on Azure VM.
+
+**Setup:**
+
+1. Create Azure VM (Ubuntu 22.04)
+2. Install Coturn: `sudo apt install coturn`
+3. Configure `/etc/turnserver.conf`:
+   ```conf
+   listening-port=3478
+   fingerprint
+   lt-cred-mech
+   user=username:password
+   realm=yourdomain.com
+   ```
+4. Add credentials to `.env`:
+   ```env
+   VITE_TURN_SERVER_URL=your-azure-vm-ip:3478
+   VITE_TURN_SERVER_USERNAME=username
+   VITE_TURN_SERVER_CREDENTIAL=password
+   ```
 
 ---
 
