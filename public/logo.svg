@@ -1,0 +1,29 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <!-- Background: Modern "Tech" Dark Slate (Tailwind Slate-900 style) -->
+    <rect width="512" height="512" rx="120" fill="#0F172A"/>
+
+    <!-- Subtle Grid/Tech Accent (Optional, implies "p2p/tech") -->
+    <path d="M40 256H472" stroke="#1E293B" stroke-width="4"/>
+    <path d="M256 40V472" stroke="#1E293B" stroke-width="4"/>
+
+    <!-- The Combined Piece (White/Light Indigo) -->
+    <g transform="translate(106, 86) scale(0.6)">
+        <!-- Shared Base -->
+        <path d="M100 450 H400 C420 450 430 430 420 410 L380 350 H120 L80 410 C70 430 80 450 100 450 Z" fill="#E2E8F0"/>
+
+        <!-- Left Half: The Rook (Stable, Structural) -->
+        <path d="M120 350 V150 H100 V100 H160 V150 H250 V350 H120 Z" fill="#38BDF8"/>
+        <rect x="100" y="50" width="60" height="50" fill="#38BDF8"/>
+        <rect x="190" y="50" width="60" height="50" fill="#38BDF8"/>
+
+        <!-- Right Half: The Knight (Agile, Organic) -->
+        <path d="M250 350 V200 C250 200 280 100 380 120 C420 130 440 180 440 210 C440 240 400 260 380 260 C380 260 400 300 420 350 H250 Z" fill="#818CF8"/>
+
+        <!-- The "Fusion" Seam (Negative Space) -->
+        <path d="M245 50 V450" stroke="#0F172A" stroke-width="10" stroke-linecap="round"/>
+    </g>
+
+    <!-- "Plus" Icon Badge (Signifying 'Combine') -->
+    <circle cx="390" cy="390" r="70" fill="#3B82F6" stroke="#0F172A" stroke-width="10"/>
+    <path d="M390 355 V425 M355 390 H425" stroke="white" stroke-width="12" stroke-linecap="round"/>
+</svg>
