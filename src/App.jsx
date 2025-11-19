@@ -6,6 +6,7 @@ import { createInitialGameState, makeMove } from "./utils/gameState.js";
 import { COLORS } from "./utils/constants.js";
 import { findBestMove, findBestMoveParallel } from "./ai/alphaBeta.js";
 import { AI_DIFFICULTY } from "./ai/constants.js";
+import { Analytics } from "@vercel/analytics/react";
 import "./App.css";
 
 function App() {
