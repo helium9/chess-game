@@ -200,8 +200,9 @@ npm run lint     # Run ESLint
 ## Author
 
 **mapcrafter2048**
+**helium9**
 
-- GitHub: [@mapcrafter2048](https://github.com/mapcrafter2048)
+- GitHub: [@mapcrafter2048](https://github.com/mapcrafter2048) [@helium9](https://github.com/helium9)
 - Live App: [p2p-chess.vercel.app](https://p2p-chess.vercel.app/)
 
 ---
