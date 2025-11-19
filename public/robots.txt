@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+# Block sensitive or build directories if needed (uncomment lines below)
+# Disallow: /scripts/
+# Disallow: /tests/
+Sitemap: https://www.p2p-chess.tech/sitemap.xml
