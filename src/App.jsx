@@ -370,7 +370,9 @@ function App() {
 
         // Forward ALL messages to Navbar's debug panel via a custom event
         // This allows Navbar to display messages without conflicting with App's handler
-        window.dispatchEvent(new CustomEvent('webrtc-message', { detail: message }));
+        window.dispatchEvent(
+          new CustomEvent("webrtc-message", { detail: message })
+        );
       });
     }
   }, [webRTC.setOnMessageReceived, handleMessage]);
@@ -438,6 +440,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <Analytics />
       <Navbar
         webRTC={webRTC}
         gameState={gameState}
