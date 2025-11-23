@@ -54,15 +54,15 @@ class WebRTCSignalingService {
           ],
         },
         {
-          urls: [`stun:${process.env.NEXT_PUBLIC_TURN_SERVER_URL}`],
+          urls: [`stun:${process.env.VITE_TURN_SERVER_URL}`],
         },
         {
           urls: [
-            `turn:${process.env.NEXT_PUBLIC_TURN_SERVER_URL}?transport=udp`,
-            `turn:${process.env.NEXT_PUBLIC_TURN_SERVER_URL}?transport=tcp`,
+            `turn:${process.env.VITE_TURN_SERVER_URL}?transport=udp`,
+            `turn:${process.env.VITE_TURN_SERVER_URL}?transport=tcp`,
           ],
-          username: process.env.NEXT_PUBLIC_TURN_SERVER_USERNAME,
-          credential: process.env.NEXT_PUBLIC_TURN_SERVER_CREDENTIAL,
+          username: process.env.VITE_TURN_SERVER_USERNAME,
+          credential: process.env.VITE_TURN_SERVER_CREDENTIAL,
         },
       ],
       iceCandidatePoolSize: 10,
