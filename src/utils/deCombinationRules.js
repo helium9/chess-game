@@ -4,9 +4,9 @@ import {
   isHybridPiece,
   getPieceColor,
   getBasePieceType,
+  copyBoard,
 } from "./constants.js";
 import { isInCheck } from "./moveCalculator.js";
-import { copyBoard } from "./gameState.js";
 
 // Standardized error messages for de-combination
 export const DE_COMBINE_ERRORS = {

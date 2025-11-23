@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import { capitalizeColor } from "../helpers/messageHelpers.js";
 
@@ -46,9 +48,7 @@ const GameControls = ({
               ? "Cannot undo while in special mode"
               : "Undo last move"
           }
-          className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-bold rounded-lg sm:rounded-xl 
-                    shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-orange-400
-                    disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:opacity-50"
+          className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-bold rounded-lg sm:rounded-xl shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-orange-400 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:opacity-50"
         >
           <span className="text-sm sm:text-base md:text-lg lg:text-xl">
             ↶ Undo
@@ -67,9 +67,7 @@ const GameControls = ({
               ? "Cannot redo while in special mode"
               : "Redo last undone move"
           }
-          className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-bold rounded-lg sm:rounded-xl 
-                    shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-orange-400
-                    disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:opacity-50"
+          className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-bold rounded-lg sm:rounded-xl shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-orange-400 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:opacity-50"
         >
           <span className="text-sm sm:text-base md:text-lg lg:text-xl">
             ↷ Redo
@@ -126,8 +124,7 @@ const GameControls = ({
         <button
           onClick={onReset}
           aria-label="Reset Game"
-          className="px-4 py-2 sm:px-6 sm:py-3 md:px-8 md:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-lg sm:rounded-xl 
-                      shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-blue-400"
+          className="px-4 py-2 sm:px-6 sm:py-3 md:px-8 md:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-lg sm:rounded-xl shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-blue-400"
         >
           <span className="text-sm sm:text-base md:text-lg lg:text-xl whitespace-nowrap">
             🔄 Reset

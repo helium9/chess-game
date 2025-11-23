@@ -27,7 +27,7 @@ export const isPlayerInCheck = (board, color) => {
 export const hasLegalMoves = async (board, color, castlingRights) => {
   try {
     // Dynamically import to avoid circular dependencies
-    const { getAllLegalMoves } = await import("../ai/alphaBeta.js");
+    const { getAllLegalMoves } = await import("../ai/chessRules.js");
     const legalMoves = getAllLegalMoves(board, color, castlingRights);
     return legalMoves.length > 0;
   } catch (error) {

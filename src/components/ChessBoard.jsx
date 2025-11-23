@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
 import {
   createInitialGameState,
@@ -9,7 +11,7 @@ import {
 } from "../utils/gameState.js";
 import { COLORS, getPieceColor } from "../utils/constants.js";
 import { announceTurn, capitalizeColor } from "./helpers/messageHelpers.js";
-import { getAllLegalMoves } from "../ai/alphaBeta.js";
+import { getAllLegalMoves } from "../ai/chessRules.js";
 import { getGameStatus } from "../utils/gameStatus.js";
 import { useCombineMode } from "./hooks/useCombineMode.js";
 import { useDeCombineMode } from "./hooks/useDeCombineMode.js";

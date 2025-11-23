@@ -1,6 +1,14 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
 
-const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty, onDifficultyChange }) => {
+const Navbar = ({
+  webRTC,
+  gameState,
+  onStartEngineGame,
+  aiDifficulty,
+  onDifficultyChange,
+}) => {
   const [receiverIdInput, setReceiverIdInput] = useState("");
   const [messages, setMessages] = useState([]);
   const [testMessage, setTestMessage] = useState("");
@@ -32,7 +40,7 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty, onDifficul
       const message = event.detail;
 
       // Handle latency result specially
-      if (message.type === 'latencyResult') {
+      if (message.type === "latencyResult") {
         setMeasuringLatency(false);
         if (message.data.success) {
           setLatency(message.data.latency);
@@ -43,7 +51,7 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty, onDifficul
               data: {
                 type: "latency",
                 latency: message.data.latency.toFixed(2),
-                rtt: message.data.rtt.toFixed(2)
+                rtt: message.data.rtt.toFixed(2),
               },
               timestamp: new Date().toLocaleTimeString(),
             },
@@ -63,10 +71,10 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty, onDifficul
       ]);
     };
 
-    window.addEventListener('webrtc-message', handleWebRTCMessage);
+    window.addEventListener("webrtc-message", handleWebRTCMessage);
 
     return () => {
-      window.removeEventListener('webrtc-message', handleWebRTCMessage);
+      window.removeEventListener("webrtc-message", handleWebRTCMessage);
     };
   }, []);
 
@@ -226,16 +234,17 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty, onDifficul
             {/* Game Mode Indicator */}
             <div className="flex flex-row items-center gap-2 justify-center">
               <span
-                className={`px-2 lg:px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${gameMode === "singlePlayer"
-                  ? "bg-gray-600 text-gray-100"
-                  : gameMode === "vsEngine"
+                className={`px-2 lg:px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
+                  gameMode === "singlePlayer"
+                    ? "bg-gray-600 text-gray-100"
+                    : gameMode === "vsEngine"
                     ? "bg-purple-600 text-white"
                     : gameMode === "host"
-                      ? "bg-blue-600 text-white"
-                      : gameMode === "guest"
-                        ? "bg-green-600 text-white"
-                        : "bg-gray-600 text-gray-100"
-                  }`}
+                    ? "bg-blue-600 text-white"
+                    : gameMode === "guest"
+                    ? "bg-green-600 text-white"
+                    : "bg-gray-600 text-gray-100"
+                }`}
               >
                 {gameMode === "singlePlayer" && "🎮 Single"}
                 {gameMode === "vsEngine" && `🤖 vs AI`}
@@ -245,22 +254,23 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty, onDifficul
 
               {gameState && gameMode !== "singlePlayer" && (
                 <span
-                  className={`px-2 py-1 rounded text-xs font-medium whitespace-nowrap ${gameMode === "vsEngine"
-                    ? gameState.currentTurn === "white"
+                  className={`px-2 py-1 rounded text-xs font-medium whitespace-nowrap ${
+                    gameMode === "vsEngine"
+                      ? gameState.currentTurn === "white"
+                        ? "bg-green-500 text-white animate-pulse"
+                        : "bg-gray-500 text-gray-200"
+                      : gameState.currentTurn === playerColor
                       ? "bg-green-500 text-white animate-pulse"
                       : "bg-gray-500 text-gray-200"
-                    : gameState.currentTurn === playerColor
-                      ? "bg-green-500 text-white animate-pulse"
-                      : "bg-gray-500 text-gray-200"
-                    }`}
+                  }`}
                 >
                   {gameMode === "vsEngine"
                     ? gameState.currentTurn === "white"
                       ? "Your Turn"
                       : "AI..."
                     : gameState.currentTurn === playerColor
-                      ? "Your Turn"
-                      : "Wait..."}
+                    ? "Your Turn"
+                    : "Wait..."}
                 </span>
               )}
             </div>
@@ -268,7 +278,7 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty, onDifficul
 
           {/* P2P Connection Controls */}
           <div className="flex flex-col lg:flex-row flex-wrap items-center justify-center gap-2 w-full lg:w-auto">
-            {!isConnected && !isConnecting && gameMode !== 'vsEngine' && (
+            {!isConnected && !isConnecting && gameMode !== "vsEngine" && (
               <>
                 {/* Engine Mode Button with Difficulty Selector */}
                 <div className="flex items-center gap-2 w-full sm:w-auto">
@@ -323,14 +333,16 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty, onDifficul
             )}
 
             {/* AI Mode Controls - Shown when in vsEngine mode */}
-            {gameMode === 'vsEngine' && (
+            {gameMode === "vsEngine" && (
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <div className="flex items-center gap-2 bg-purple-900/30 rounded-lg px-3 py-1.5 border border-purple-600/50">
-                  <span className="text-xs font-medium text-purple-300 whitespace-nowrap">AI:</span>
+                  <span className="text-xs font-medium text-purple-300 whitespace-nowrap">
+                    AI:
+                  </span>
                   <span className="text-xs font-semibold text-white">
-                    {aiDifficulty === 'EASY' && '🟢 Easy'}
-                    {aiDifficulty === 'MEDIUM' && '🟡 Medium'}
-                    {aiDifficulty === 'HARD' && '🔴 Hard'}
+                    {aiDifficulty === "EASY" && "🟢 Easy"}
+                    {aiDifficulty === "MEDIUM" && "🟡 Medium"}
+                    {aiDifficulty === "HARD" && "🔴 Hard"}
                   </span>
                 </div>
               </div>
@@ -443,14 +455,15 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty, onDifficul
                     <div className="text-slate-300">
                       <span className="font-medium">State:</span>
                       <span
-                        className={`ml-2 px-2 py-1 rounded text-xs font-medium ${connectionState === "connected"
-                          ? "bg-green-600 text-white"
-                          : connectionState === "connecting"
+                        className={`ml-2 px-2 py-1 rounded text-xs font-medium ${
+                          connectionState === "connected"
+                            ? "bg-green-600 text-white"
+                            : connectionState === "connecting"
                             ? "bg-yellow-600 text-white"
                             : connectionState === "failed"
-                              ? "bg-red-600 text-white"
-                              : "bg-gray-600 text-white"
-                          }`}
+                            ? "bg-red-600 text-white"
+                            : "bg-gray-600 text-white"
+                        }`}
                       >
                         {connectionState}
                       </span>
@@ -505,7 +518,9 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty, onDifficul
                         <span className="text-2xl font-bold text-green-400">
                           {latency.toFixed(2)} ms
                         </span>
-                        <p className="text-xs text-slate-400 mt-1">Current Latency</p>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Current Latency
+                        </p>
                       </div>
                     )}
                     <button
@@ -555,24 +570,25 @@ const Navbar = ({ webRTC, gameState, onStartEngineGame, aiDifficulty, onDifficul
                       {messages.map((msg, index) => (
                         <div
                           key={index}
-                          className={`text-xs p-2 rounded ${msg.type === "sent"
-                            ? "bg-blue-900 text-blue-100"
-                            : msg.type === "received"
+                          className={`text-xs p-2 rounded ${
+                            msg.type === "sent"
+                              ? "bg-blue-900 text-blue-100"
+                              : msg.type === "received"
                               ? "bg-green-900 text-green-100"
                               : msg.type === "system"
-                                ? "bg-yellow-900 text-yellow-100"
-                                : "bg-gray-900 text-gray-100"
-                            }`}
+                              ? "bg-yellow-900 text-yellow-100"
+                              : "bg-gray-900 text-gray-100"
+                          }`}
                         >
                           <div className="flex justify-between items-start mb-1">
                             <span className="font-medium">
                               {msg.type === "sent"
                                 ? "→ Sent"
                                 : msg.type === "received"
-                                  ? "← Received"
-                                  : msg.type === "system"
-                                    ? "⚠ System"
-                                    : "• Unknown"}
+                                ? "← Received"
+                                : msg.type === "system"
+                                ? "⚠ System"
+                                : "• Unknown"}
                             </span>
                             <span className="text-slate-400">
                               {msg.timestamp}

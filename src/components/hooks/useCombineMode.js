@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { PIECE_SYMBOLS, HYBRID_NAMES } from "../../utils/constants.js";
 import {

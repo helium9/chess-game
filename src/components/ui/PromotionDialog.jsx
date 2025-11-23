@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import { PIECE_SYMBOLS } from "../../utils/constants.js";
 

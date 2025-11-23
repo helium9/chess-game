@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import { PIECE_SYMBOLS, isHybridPiece } from "../../utils/constants.js";
 import { getSquareStyling, getPieceStyling } from "../helpers/squareStyling.js";
