@@ -18,10 +18,11 @@ const nextConfig = {
 
   // Enable SharedArrayBuffer for Web Workers
   // Required headers for cross-origin isolation
+  // Using 'credentialless' for better mobile device compatibility
   async headers() {
     return [
       {
-        source: "/:path*",
+        source: "/(.*)",
         headers: [
           {
             key: "Cross-Origin-Opener-Policy",
@@ -29,7 +30,7 @@ const nextConfig = {
           },
           {
             key: "Cross-Origin-Embedder-Policy",
-            value: "require-corp",
+            value: "credentialless",
           },
         ],
       },
