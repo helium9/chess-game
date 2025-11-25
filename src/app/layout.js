@@ -21,11 +21,11 @@ export const viewport = {
 export const metadata = {
   metadataBase: new URL("https://www.p2p-chess.tech"),
   title: {
-    default: "P2P Chess – Combine & Split Pieces Variant",
+    default: "P2P Chess - Combine & Split Pieces Variant",
     template: "%s | P2P Chess",
   },
   description:
-    "Play an innovative chess variant online: combine & split pieces (Rook+Bishop etc.), AI engine difficulty levels, and peer‑to‑peer WebRTC multiplayer.",
+    "Play an innovative chess variant online: combine & split pieces (Rook+Bishop etc.), AI engine difficulty levels, and peer-to-peer WebRTC multiplayer.",
   keywords: [
     "chess variant",
     "combine pieces",
@@ -54,9 +54,9 @@ export const metadata = {
     },
   },
   icons: {
-    icon: "/logo.svg",
-    shortcut: "/logo.svg",
-    apple: "/logo.svg",
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
   },
   manifest: "/manifest.json",
   alternates: {
@@ -72,7 +72,7 @@ export const metadata = {
     locale: "en_US",
     images: [
       {
-        url: "/logo.svg",
+        url: "/logo.png",
         width: 800,
         height: 600,
         alt: "P2P Chess Logo",
@@ -83,7 +83,7 @@ export const metadata = {
     card: "summary_large_image",
     title: "P2P Chess – Combine & Split Pieces",
     description: "Hybrid chess variant with AI & P2P multiplayer.",
-    images: ["/logo.svg"],
+    images: ["/logo.png"],
   },
 };
 
