@@ -53,11 +53,6 @@ export const metadata = {
       "max-snippet": -1,
     },
   },
-  icons: {
-    icon: "/logo.png",
-    shortcut: "/logo.png",
-    apple: "/logo.png",
-  },
   manifest: "/manifest.json",
   alternates: {
     canonical: "/",
@@ -70,20 +65,11 @@ export const metadata = {
     url: "https://www.p2p-chess.tech/",
     siteName: "P2P Chess",
     locale: "en_US",
-    images: [
-      {
-        url: "/logo.png",
-        width: 800,
-        height: 600,
-        alt: "P2P Chess Logo",
-      },
-    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "P2P Chess – Combine & Split Pieces",
     description: "Hybrid chess variant with AI & P2P multiplayer.",
-    images: ["/logo.png"],
   },
 };
 

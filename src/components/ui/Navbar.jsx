@@ -227,9 +227,16 @@ const Navbar = ({
         <div className="flex flex-col justify-center items-center py-3 lg:py-0 lg:h-16 gap-3 lg:gap-0 lg:flex-row lg:justify-between">
           {/* Logo/Title */}
           <div className="flex flex-col lg:flex-row items-center gap-2 lg:gap-4 w-full lg:w-auto">
-            <h1 className="text-lg lg:text-xl font-bold text-white text-center">
-              Chess Game
-            </h1>
+            <div className="flex items-center gap-2 lg:gap-3">
+              <img
+                src="/logo.png"
+                alt="P2P Chess Logo"
+                className="w-8 h-8 lg:w-10 lg:h-10"
+              />
+              <h1 className="text-lg lg:text-xl font-bold text-white">
+                P2P Chess
+              </h1>
+            </div>
 
             {/* Game Mode Indicator */}
             <div className="flex flex-row items-center gap-2 justify-center">
