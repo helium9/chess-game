@@ -12,23 +12,69 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const viewport = {
+  themeColor: "#0d0d0d",
+  width: "device-width",
+  initialScale: 1,
+};
+
 export const metadata = {
-  title: "P2P Chess – Combine & Split Pieces Variant",
+  metadataBase: new URL("https://www.p2p-chess.tech"),
+  title: {
+    default: "P2P Chess – Combine & Split Pieces Variant",
+    template: "%s | P2P Chess",
+  },
   description:
     "Play an innovative chess variant online: combine & split pieces (Rook+Bishop etc.), AI engine difficulty levels, and peer‑to‑peer WebRTC multiplayer.",
-  keywords:
-    "chess variant, combine pieces, hybrid chess, multiplayer chess, AI chess engine, WebRTC chess",
+  keywords: [
+    "chess variant",
+    "combine pieces",
+    "hybrid chess",
+    "multiplayer chess",
+    "AI chess engine",
+    "WebRTC chess",
+    "fairy chess",
+    "strategy game",
+    "online chess",
+    "free chess",
+    "browser game",
+  ],
   authors: [{ name: "P2P Chess Project" }],
-  themeColor: "#0d0d0d",
+  creator: "P2P Chess Project",
+  publisher: "P2P Chess Project",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  icons: {
+    icon: "/logo.svg",
+    shortcut: "/logo.svg",
+    apple: "/logo.svg",
+  },
+  manifest: "/manifest.json",
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     title: "P2P Chess – Combine & Split Pieces",
     description:
       "Novel chess variant with hybrid piece combinations, AI engine, and realtime peer‑to‑peer play.",
     type: "website",
     url: "https://www.p2p-chess.tech/",
+    siteName: "P2P Chess",
+    locale: "en_US",
     images: [
       {
-        url: "https://www.p2p-chess.tech/logo.svg",
+        url: "/logo.svg",
+        width: 800,
+        height: 600,
         alt: "P2P Chess Logo",
       },
     ],
@@ -37,45 +83,51 @@ export const metadata = {
     card: "summary_large_image",
     title: "P2P Chess – Combine & Split Pieces",
     description: "Hybrid chess variant with AI & P2P multiplayer.",
-    images: ["https://www.p2p-chess.tech/logo.svg"],
+    images: ["/logo.svg"],
   },
 };
 
 export default function RootLayout({ children }) {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        name: "P2P Chess",
+        url: "https://www.p2p-chess.tech/",
+        description:
+          "Innovative chess variant with piece combination & splitting, AI, and peer-to-peer multiplayer.",
+        inLanguage: "en",
+        publisher: {
+          "@type": "Organization",
+          name: "P2P Chess Project",
+        },
+      },
+      {
+        "@type": "SoftwareApplication",
+        name: "P2P Chess",
+        applicationCategory: "GameApplication",
+        operatingSystem: "Any",
+        offers: {
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "USD",
+        },
+        description:
+          "Play an innovative chess variant online: combine & split pieces (Rook+Bishop etc.), AI engine difficulty levels, and peer‑to‑peer WebRTC multiplayer.",
+      },
+    ],
+  };
+
   return (
     <html lang="en">
-      <head>
-        <link rel="icon" type="image/svg+xml" href="/logo.svg" />
-        <link rel="canonical" href="https://www.p2p-chess.tech/" />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "WebSite",
-              name: "P2P Chess",
-              url: "https://www.p2p-chess.tech/",
-              description:
-                "Innovative chess variant with piece combination & splitting, AI, and peer-to-peer multiplayer.",
-              inLanguage: "en",
-              publisher: {
-                "@type": "Organization",
-                name: "P2P Chess Project",
-              },
-              potentialAction: {
-                "@type": "PlayAction",
-                target: {
-                  "@type": "EntryPoint",
-                  urlTemplate: "https://www.p2p-chess.tech/",
-                },
-              },
-            }),
-          }}
-        />
-      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
         <SpeedInsights />
         {children}
       </body>
