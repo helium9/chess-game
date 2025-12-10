@@ -15,6 +15,17 @@ export default function Home() {
   const [gameState, setGameState] = useState(() => createInitialGameState());
   const lastSyncRequestTime = useRef(0);
 
+  // Ref to track the latest game state (for use in sync requests where React state might be stale)
+  const gameStateRef = useRef(gameState);
+
+  // Keep gameStateRef in sync with gameState
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
+
+  // Flag to prevent echoing back received game states
+  const isReceivingRemoteState = useRef(false);
+
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [aiDifficulty, setAiDifficulty] = useState("MEDIUM");
 
@@ -25,12 +36,12 @@ export default function Home() {
   });
 
   const handleGameStateChange = (newGameState) => {
-    console.log("Game state changed:", {
-      oldState: gameState,
-      newState: newGameState,
+    console.log("[SYNC DEBUG] handleGameStateChange called:", {
       currentTurn: newGameState.currentTurn,
       gameMode: webRTC.gameMode,
       playerColor: webRTC.playerColor,
+      isConnected: webRTC.isConnected,
+      boardHash: JSON.stringify(newGameState.board).slice(0, 100),
     });
 
     if (
@@ -56,6 +67,8 @@ export default function Home() {
       timerStateRef.current.lastUpdate = now;
     }
 
+    // Update ref IMMEDIATELY before setting state, so sync requests get latest state
+    gameStateRef.current = newGameState;
     setGameState(newGameState);
 
     if (
@@ -67,13 +80,26 @@ export default function Home() {
       makeAiMove(newGameState);
     }
 
-    if (webRTC.isConnected) {
+    // Only send game state to peer if this is a LOCAL change, not a received remote state
+    if (webRTC.isConnected && !isReceivingRemoteState.current) {
+      console.log("[SYNC DEBUG] Sending game state to peer:", {
+        type: "gameStateSync",
+        currentTurn: newGameState.currentTurn,
+        boardHash: JSON.stringify(newGameState.board).slice(0, 100),
+      });
       webRTC.sendGameState({
         type: "gameStateSync",
         gameState: newGameState,
         timerState: { ...timerStateRef.current },
         timestamp: Date.now(),
       });
+    } else if (isReceivingRemoteState.current) {
+      console.log("[SYNC DEBUG] Skipping send - this is a remote state update");
+    } else if (!webRTC.isConnected) {
+      console.log(
+        "[SYNC DEBUG] Skipping send - NOT CONNECTED! gameMode:",
+        webRTC.gameMode
+      );
     }
   };
 
@@ -201,6 +227,7 @@ export default function Home() {
         );
         timerStateRef.current.lastUpdate = now;
 
+        gameStateRef.current = newGameState;
         setGameState(newGameState);
       } else {
         console.log("AI has no legal moves (game over)");
@@ -218,7 +245,9 @@ export default function Home() {
     webRTC.updateGameMode("vsEngine");
     webRTC.updatePlayerColor(COLORS.WHITE);
 
-    setGameState(createInitialGameState());
+    const initialState = createInitialGameState();
+    gameStateRef.current = initialState;
+    setGameState(initialState);
 
     timerStateRef.current = {
       whiteTime: 180000,
@@ -235,7 +264,9 @@ export default function Home() {
     webRTC.updateGameMode("singlePlayer");
     webRTC.updatePlayerColor(null);
 
-    setGameState(createInitialGameState());
+    const initialState = createInitialGameState();
+    gameStateRef.current = initialState;
+    setGameState(initialState);
 
     timerStateRef.current = {
       whiteTime: 180000,
@@ -248,14 +279,45 @@ export default function Home() {
 
   const handleMessage = useCallback(
     (message) => {
+      console.log("[SYNC DEBUG] handleMessage received:", {
+        type: message.type,
+        hasData: !!message.data,
+        dataType: message.data?.type,
+      });
+
       if (message.type === "gameState" && message.data) {
         const innerMessage = message.data;
 
         if (innerMessage.type === "gameStateSync") {
-          console.log("Updating game state from peer:", innerMessage.gameState);
+          console.log("[SYNC DEBUG] Applying game state from peer:", {
+            currentTurn: innerMessage.gameState?.currentTurn,
+            boardHash: JSON.stringify(innerMessage.gameState?.board).slice(
+              0,
+              100
+            ),
+          });
+
+          // Set flag to prevent echoing this state back
+          isReceivingRemoteState.current = true;
+
+          // Update ref immediately for sync requests
+          gameStateRef.current = innerMessage.gameState;
           setGameState((prevState) => {
+            console.log(
+              "[SYNC DEBUG] setGameState functional update - prev turn:",
+              prevState.currentTurn,
+              "new turn:",
+              innerMessage.gameState.currentTurn
+            );
             return innerMessage.gameState;
           });
+
+          // Clear the flag after a short delay to allow effects to run
+          // This ensures any status updates from checkGameStatus won't be broadcast
+          setTimeout(() => {
+            isReceivingRemoteState.current = false;
+            console.log("[SYNC DEBUG] Remote state flag cleared");
+          }, 100);
 
           if (innerMessage.timerState) {
             timerStateRef.current = { ...innerMessage.timerState };
@@ -265,20 +327,31 @@ export default function Home() {
             );
           }
         } else if (innerMessage.type === "playerAssignment") {
+          isReceivingRemoteState.current = true;
+          gameStateRef.current = innerMessage.initialGameState;
           setGameState(innerMessage.initialGameState);
+          setTimeout(() => {
+            isReceivingRemoteState.current = false;
+          }, 100);
         }
       } else if (message.type === "requestGameStateSync") {
         const now = Date.now();
         const timeSinceLastRequest = now - lastSyncRequestTime.current;
 
-        setGameState((currentState) => {
-          webRTC.sendGameState({
-            type: "gameStateSync",
-            gameState: currentState,
-            timerState: { ...timerStateRef.current },
-            timestamp: now,
-          });
-          return currentState;
+        // Use gameStateRef to get the LATEST state, not stale React state
+        console.log(
+          "[SYNC DEBUG] Responding to requestGameStateSync with ref state:",
+          {
+            currentTurn: gameStateRef.current.currentTurn,
+            boardHash: JSON.stringify(gameStateRef.current.board).slice(0, 100),
+          }
+        );
+
+        webRTC.sendGameState({
+          type: "gameStateSync",
+          gameState: gameStateRef.current,
+          timerState: { ...timerStateRef.current },
+          timestamp: now,
         });
 
         if (timeSinceLastRequest > 2000) {
@@ -291,11 +364,22 @@ export default function Home() {
             webRTC.setGracefulDisconnectFlag(true);
         }
       } else if (message.type === "gameStateSync") {
+        // Direct gameStateSync message (without wrapper)
+        isReceivingRemoteState.current = true;
+        gameStateRef.current = message.gameState;
         setGameState((prevState) => {
           return message.gameState;
         });
+        setTimeout(() => {
+          isReceivingRemoteState.current = false;
+        }, 100);
       } else if (message.type === "playerAssignment") {
+        isReceivingRemoteState.current = true;
+        gameStateRef.current = message.initialGameState;
         setGameState(message.initialGameState);
+        setTimeout(() => {
+          isReceivingRemoteState.current = false;
+        }, 100);
       }
     },
     [webRTC]
@@ -314,21 +398,34 @@ export default function Home() {
   }, [webRTC.setOnMessageReceived, handleMessage]);
 
   useEffect(() => {
+    console.log(
+      "[SYNC DEBUG] setOnDataChannelOpen effect - gameMode:",
+      webRTC.gameMode,
+      "hasSetOnDataChannelOpen:",
+      !!webRTC.setOnDataChannelOpen
+    );
     if (webRTC.setOnDataChannelOpen && webRTC.gameMode === "host") {
+      console.log("[SYNC DEBUG] Setting onDataChannelOpen callback for host");
       webRTC.setOnDataChannelOpen(() => {
+        console.log(
+          "[SYNC DEBUG] onDataChannelOpen callback FIRED - sending playerAssignment"
+        );
+        // Use gameStateRef to get the latest state, avoiding stale closure issues
         webRTC.sendGameState({
           type: "playerAssignment",
           hostColor: COLORS.WHITE,
           guestColor: COLORS.BLACK,
-          initialGameState: gameState,
+          initialGameState: gameStateRef.current,
         });
       });
     }
-  }, [webRTC.setOnDataChannelOpen, webRTC.gameMode, gameState, webRTC]);
+  }, [webRTC.setOnDataChannelOpen, webRTC.gameMode, webRTC]);
 
   useEffect(() => {
     if (webRTC.gameMode === "singlePlayer") {
-      setGameState(createInitialGameState());
+      const initialState = createInitialGameState();
+      gameStateRef.current = initialState;
+      setGameState(initialState);
       timerStateRef.current = {
         whiteTime: 180000,
         blackTime: 180000,

@@ -45,13 +45,22 @@ const ChessBoard = ({
   );
   const gameState = externalGameState || internalGameState;
 
+  // Debug: Log when ChessBoard receives new gameState prop
+  useEffect(() => {
+    console.log("[SYNC DEBUG] ChessBoard gameState updated:", {
+      currentTurn: gameState.currentTurn,
+      hasExternalState: !!externalGameState,
+      boardHash: JSON.stringify(gameState.board).slice(0, 100),
+    });
+  }, [gameState, externalGameState]);
+
   // Game state updater - calls parent callback if provided
   const updateGameState = (newGameState) => {
-    console.log("ChessBoard updateGameState called:", {
+    console.log("[SYNC DEBUG] ChessBoard updateGameState called:", {
       hasCallback: !!onGameStateChange,
       gameMode,
       playerColor,
-      newState: newGameState,
+      newTurn: newGameState.currentTurn,
     });
 
     if (onGameStateChange) {
@@ -118,7 +127,22 @@ const ChessBoard = ({
           ...gameState,
           gameStatus: status,
         };
-        updateGameState(newGameState);
+
+        // In multiplayer, only update game state (which broadcasts) if it's NOT our turn
+        // This means we just made a move and should broadcast our updated status
+        // When it IS our turn, we received a move from opponent and shouldn't echo it back
+        // In single player and vsEngine modes, always update
+        const isMultiplayer = gameMode === "host" || gameMode === "guest";
+        const justMadeMove =
+          isMultiplayer && gameState.currentTurn !== playerColor;
+        const shouldBroadcast =
+          gameMode === "singlePlayer" ||
+          gameMode === "vsEngine" ||
+          justMadeMove;
+
+        if (shouldBroadcast) {
+          updateGameState(newGameState);
+        }
 
         // Update message based on priority: checkmate > stalemate > check > normal
         if (status.isCheckmate) {
@@ -147,7 +171,7 @@ const ChessBoard = ({
     };
 
     checkGameStatus();
-  }, [gameState.board, gameState.currentTurn]);
+  }, [gameState.board, gameState.currentTurn, gameMode, playerColor]);
 
   // Move validation for multiplayer mode using existing utilities
   const canMakeMove = (piece, fromSquare = null) => {

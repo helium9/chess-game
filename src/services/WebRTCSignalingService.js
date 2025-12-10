@@ -38,59 +38,92 @@ class WebRTCSignalingService {
     this.connectionLossTimeout = null; // Debounce multiple connection loss events
     this.reconnectionTimeout = null; // Timeout for reconnection attempts
     this.gracefulDisconnectReceived = false;
+    this.hasEverConnected = false; // Track if we've ever successfully connected
+    this.wasDisconnected = false; // Track if we were disconnected (for recovery sync)
 
     // Latency measurement
     this.pendingPings = new Map(); // Store ping timestamps for latency calculation
   }
 
+  // Fetch TURN credentials from API
+  async fetchTurnCredentials() {
+    try {
+      const response = await fetch("/api/turn-credentials");
+      if (!response.ok) {
+        console.error("Failed to fetch TURN credentials:", response.status);
+        return null;
+      }
+      const data = await response.json();
+      return data.iceServers;
+    } catch (error) {
+      console.error("Error fetching TURN credentials:", error);
+      return null;
+    }
+  }
+
   // Initialize WebRTC peer connection
-  initializePeerConnection() {
+  async initializePeerConnection() {
+    // Fetch Cloudflare TURN credentials
+    const turnIceServers = await this.fetchTurnCredentials();
+
     const configuration = {
       iceServers: [
+        // Google STUN servers as fallback
         {
           urls: [
             "stun:stun1.l.google.com:19302",
             "stun:stun2.l.google.com:19302",
           ],
         },
-        {
-          urls: [`stun:${process.env.VITE_TURN_SERVER_URL}`],
-        },
-        {
-          urls: [
-            `turn:${process.env.VITE_TURN_SERVER_URL}?transport=udp`,
-            `turn:${process.env.VITE_TURN_SERVER_URL}?transport=tcp`,
-          ],
-          username: process.env.VITE_TURN_SERVER_USERNAME,
-          credential: process.env.VITE_TURN_SERVER_CREDENTIAL,
-        },
+        // Add Cloudflare TURN servers if credentials were fetched successfully
+        ...(turnIceServers || []),
       ],
       iceCandidatePoolSize: 10,
     };
 
     this.localConnection = new RTCPeerConnection(configuration);
 
-    // Set up data channel for game state exchange
+    // Create data channel for game state exchange
+    // Both sides create it, but only one will actually be used (the one from ondatachannel)
     this.dataChannel = this.localConnection.createDataChannel("gameState", {
       ordered: true,
-      maxRetransmits: 3, // Retry failed messages up to 3 times
+      // Note: NOT using maxRetransmits - this gives us reliable delivery
     });
-
     this.setupDataChannelHandlers(this.dataChannel);
+    console.log(
+      "[SYNC DEBUG] Created local data channel, role:",
+      this.lastRole
+    );
 
-    // Handle remote data channel
+    // Handle remote data channel - CRITICAL: this is how we receive the peer's channel
+    // The received channel replaces our local one to ensure both sides use the same channel
     this.localConnection.ondatachannel = (event) => {
-      console.log("Remote data channel received");
+      console.log(
+        "[SYNC DEBUG] Remote data channel received, label:",
+        event.channel.label,
+        "role:",
+        this.lastRole
+      );
+
+      // Replace our data channel with the received one
+      // This ensures both sides are using the same channel object
       const receiveChannel = event.channel;
-      // Update the data channel reference to use the remote channel
-      // This is important for the answerer side
       this.dataChannel = receiveChannel;
       this.setupDataChannelHandlers(receiveChannel);
+      console.log("[SYNC DEBUG] Now using received data channel");
     };
 
     // Handle ICE connection state changes
     this.localConnection.onconnectionstatechange = () => {
       console.log("Connection state:", this.localConnection.connectionState);
+
+      // Track disconnection for recovery detection
+      if (this.localConnection.connectionState === "disconnected") {
+        console.log(
+          "[SYNC DEBUG] Connection disconnected - marking wasDisconnected=true"
+        );
+        this.wasDisconnected = true;
+      }
 
       // Handle successful reconnection
       if (
@@ -107,6 +140,7 @@ class WebRTCSignalingService {
 
         this.reconnectAttempts = 0;
         this.isReconnecting = false;
+        this.wasDisconnected = false;
 
         // Notify successful reconnection
         if (this.onConnectionStateChange) {
@@ -123,6 +157,35 @@ class WebRTCSignalingService {
         } else {
           console.log("Host reconnected - waiting for guest to request sync");
         }
+      }
+
+      // Also handle recovery from brief disconnect (not full reconnection)
+      // This catches cases where connection drops briefly and recovers on its own
+      // Only request sync if we were disconnected (not on initial connection)
+      if (
+        this.localConnection.connectionState === "connected" &&
+        !this.isReconnecting &&
+        this.wasDisconnected &&
+        this.lastRole === "receiver"
+      ) {
+        console.log(
+          "[SYNC DEBUG] Connection recovered from brief disconnect - guest will request sync"
+        );
+        this.wasDisconnected = false;
+        // Small delay to let things stabilize
+        setTimeout(() => {
+          if (this.dataChannel && this.dataChannel.readyState === "open") {
+            console.log(
+              "[SYNC DEBUG] Guest requesting sync after brief disconnect recovery"
+            );
+            this.requestGameStateSync();
+          }
+        }, 500);
+      }
+
+      // Track that we've connected (for distinguishing initial connect vs recovery)
+      if (this.localConnection.connectionState === "connected") {
+        this.hasEverConnected = true;
       }
 
       if (this.onConnectionStateChange) {
@@ -157,7 +220,15 @@ class WebRTCSignalingService {
         this.localConnection.iceConnectionState === "connected" ||
         this.localConnection.iceConnectionState === "completed"
       ) {
-        // console.log('ICE connection established/completed');
+        console.log(
+          "[SYNC DEBUG] ICE connection established/completed - checking data channel state:",
+          {
+            hasDataChannel: !!this.dataChannel,
+            dataChannelState: this.dataChannel?.readyState,
+            dataChannelLabel: this.dataChannel?.label,
+            role: this.lastRole,
+          }
+        );
         // Don't cancel pending reconnections - let scheduleConnectionLossHandler decide
         // Update heartbeat timestamp to reflect good connection
         this.lastHeartbeatReceived = Date.now();
@@ -170,11 +241,16 @@ class WebRTCSignalingService {
           this.lastRole === "receiver"
         ) {
           setTimeout(() => {
-            // console.log('Connection recovered - guest requesting game state sync from host');
+            console.log(
+              "[SYNC DEBUG] Connection recovered - guest requesting game state sync from host, dataChannel state:",
+              this.dataChannel?.readyState
+            );
             this.requestGameStateSync();
           }, 1000); // Small delay to ensure connection is stable
         } else if (this.lastRole === "initiator") {
-          // console.log('Connection recovered - host waiting for sync request from guest');
+          console.log(
+            "[SYNC DEBUG] Connection recovered - host waiting for sync request from guest"
+          );
         }
       }
     };
@@ -184,21 +260,88 @@ class WebRTCSignalingService {
 
   // Set up data channel event handlers
   setupDataChannelHandlers(channel) {
+    // Store reference for debugging
+    const channelRef = channel;
+
     channel.onopen = () => {
-      // console.log('Data channel opened');
+      console.log(
+        "[SYNC DEBUG] Data channel opened, label:",
+        channel.label,
+        "role:",
+        this.lastRole,
+        "channelId:",
+        channel.id,
+        "ordered:",
+        channel.ordered,
+        "maxRetransmits:",
+        channel.maxRetransmits,
+        "binaryType:",
+        channel.binaryType
+      );
       // Notify that data channel is ready
       if (this.onDataChannelOpen) {
+        console.log("[SYNC DEBUG] Calling onDataChannelOpen callback");
         this.onDataChannelOpen();
+      } else {
+        console.log("[SYNC DEBUG] No onDataChannelOpen callback set");
+      }
+
+      // Start a debug interval to monitor data channel state
+      if (!this._debugInterval) {
+        this._debugInterval = setInterval(() => {
+          console.log("[SYNC DEBUG] Channel health check:", {
+            thisDataChannel: this.dataChannel?.readyState,
+            thisDataChannelLabel: this.dataChannel?.label,
+            channelRefState: channelRef?.readyState,
+            areSame: this.dataChannel === channelRef,
+            role: this.lastRole,
+          });
+        }, 10000); // Every 10 seconds
       }
     };
 
     channel.onclose = () => {
-      // console.log('Data channel closed');
+      console.log(
+        "[SYNC DEBUG] Data channel closed, label:",
+        channel.label,
+        "role:",
+        this.lastRole
+      );
+      if (this._debugInterval) {
+        clearInterval(this._debugInterval);
+        this._debugInterval = null;
+      }
+    };
+
+    channel.onerror = (error) => {
+      console.error(
+        "[SYNC DEBUG] Data channel ERROR:",
+        error,
+        "label:",
+        channel.label,
+        "role:",
+        this.lastRole
+      );
     };
 
     channel.onmessage = (event) => {
+      // IMMEDIATE log before any processing - this MUST appear if message arrives
+      console.log(
+        "[SYNC DEBUG RAW] Message received! Size:",
+        event.data.length,
+        "bytes at",
+        Date.now()
+      );
+
       const receiveTimestamp = Date.now();
       const message = JSON.parse(event.data);
+
+      console.log("[SYNC DEBUG] WebRTC onmessage received:", {
+        type: message.type,
+        hasData: !!message.data,
+        dataType: message.data?.type,
+        dataSize: event.data.length,
+      });
 
       // Log latency for game state and move messages
       if (
@@ -261,7 +404,16 @@ class WebRTCSignalingService {
           this.onDataChannelMessage(message);
         }
       } else if (this.onDataChannelMessage) {
+        console.log(
+          "[SYNC DEBUG] Forwarding message to app callback:",
+          message.type
+        );
         this.onDataChannelMessage(message);
+      } else {
+        console.log(
+          "[SYNC DEBUG] WARNING: No onDataChannelMessage callback set! Message type:",
+          message.type
+        );
       }
     };
 
@@ -291,7 +443,7 @@ class WebRTCSignalingService {
       const answerCandidates = collection(this.callDoc, "answerCandidates");
 
       // Initialize peer connection
-      const pc = this.initializePeerConnection();
+      const pc = await this.initializePeerConnection();
 
       // Collect ICE candidates
       pc.onicecandidate = (event) => {
@@ -366,7 +518,7 @@ class WebRTCSignalingService {
       const answerCandidates = collection(this.callDoc, "answerCandidates");
 
       // Initialize peer connection
-      const pc = this.initializePeerConnection();
+      const pc = await this.initializePeerConnection();
 
       // Collect ICE candidates
       pc.onicecandidate = (event) => {
@@ -595,7 +747,7 @@ class WebRTCSignalingService {
       const answerCandidates = collection(this.callDoc, "answerCandidates");
 
       // Initialize NEW peer connection
-      const pc = this.initializePeerConnection();
+      const pc = await this.initializePeerConnection();
 
       // Collect ICE candidates
       pc.onicecandidate = (event) => {
@@ -755,13 +907,31 @@ class WebRTCSignalingService {
     // Send heartbeats every 30 seconds
     this.heartbeatInterval = setInterval(() => {
       if (this.dataChannel && this.dataChannel.readyState === "open") {
-        this.dataChannel.send(
-          JSON.stringify({
-            type: "heartbeat",
-            timestamp: Date.now(),
-          })
+        console.log(
+          "[SYNC DEBUG] Sending heartbeat, dataChannel state:",
+          this.dataChannel.readyState,
+          "role:",
+          this.lastRole,
+          "bufferedAmount:",
+          this.dataChannel.bufferedAmount
         );
+        try {
+          this.dataChannel.send(
+            JSON.stringify({
+              type: "heartbeat",
+              timestamp: Date.now(),
+            })
+          );
+          console.log("[SYNC DEBUG] Heartbeat sent successfully");
+        } catch (e) {
+          console.error("[SYNC DEBUG] Heartbeat send FAILED:", e);
+        }
         // console.log('Heartbeat sent');
+      } else {
+        console.warn(
+          "[SYNC DEBUG] Heartbeat skipped - dataChannel not open:",
+          this.dataChannel?.readyState
+        );
       }
     }, 30000);
 
@@ -786,11 +956,27 @@ class WebRTCSignalingService {
   // Send heartbeat response
   sendHeartbeatResponse() {
     if (this.dataChannel && this.dataChannel.readyState === "open") {
-      this.dataChannel.send(
-        JSON.stringify({
-          type: "heartbeatResponse",
-          timestamp: Date.now(),
-        })
+      console.log(
+        "[SYNC DEBUG] Sending heartbeatResponse, dataChannel state:",
+        this.dataChannel.readyState,
+        "role:",
+        this.lastRole
+      );
+      try {
+        this.dataChannel.send(
+          JSON.stringify({
+            type: "heartbeatResponse",
+            timestamp: Date.now(),
+          })
+        );
+        console.log("[SYNC DEBUG] heartbeatResponse sent successfully");
+      } catch (e) {
+        console.error("[SYNC DEBUG] heartbeatResponse send FAILED:", e);
+      }
+    } else {
+      console.warn(
+        "[SYNC DEBUG] Cannot send heartbeatResponse - channel not ready:",
+        this.dataChannel?.readyState
       );
     }
   }
@@ -845,18 +1031,48 @@ class WebRTCSignalingService {
   sendGameState(gameState) {
     if (this.dataChannel && this.dataChannel.readyState === "open") {
       const sendTimestamp = Date.now();
-      this.dataChannel.send(
-        JSON.stringify({
-          type: "gameState",
-          data: gameState,
-          timestamp: sendTimestamp,
-        })
+      const payload = JSON.stringify({
+        type: "gameState",
+        data: gameState,
+        timestamp: sendTimestamp,
+      });
+
+      // Check buffer status before sending
+      const bufferedAmount = this.dataChannel.bufferedAmount;
+      console.log(
+        "[SYNC DEBUG] WebRTC sendGameState - payload size:",
+        payload.length,
+        "bytes, dataChannel state:",
+        this.dataChannel.readyState,
+        "dataChannel label:",
+        this.dataChannel.label,
+        "role:",
+        this.lastRole,
+        "bufferedAmount:",
+        bufferedAmount
       );
-      console.log("[WebRTC Latency] Game state sent at:", sendTimestamp);
+
+      try {
+        this.dataChannel.send(payload);
+        console.log(
+          "[WebRTC Latency] Game state sent at:",
+          sendTimestamp,
+          "- send successful, bufferedAmount after:",
+          this.dataChannel.bufferedAmount
+        );
+      } catch (error) {
+        console.error("[SYNC DEBUG] Error sending game state:", error);
+      }
+
       // Update heartbeat timestamp since we successfully sent data (connection is alive)
       this.lastHeartbeatReceived = Date.now();
     } else {
-      console.warn("Data channel not ready for sending");
+      console.warn(
+        "[SYNC DEBUG] Data channel not ready for sending - state:",
+        this.dataChannel?.readyState,
+        "role:",
+        this.lastRole
+      );
     }
   }
 
@@ -899,16 +1115,36 @@ class WebRTCSignalingService {
 
   // Request current game state from peer (used after reconnection)
   requestGameStateSync() {
+    console.log(
+      "[SYNC DEBUG] requestGameStateSync called, dataChannel state:",
+      {
+        hasDataChannel: !!this.dataChannel,
+        state: this.dataChannel?.readyState,
+        label: this.dataChannel?.label,
+        role: this.lastRole,
+        bufferedAmount: this.dataChannel?.bufferedAmount,
+      }
+    );
     if (this.dataChannel && this.dataChannel.readyState === "open") {
-      this.dataChannel.send(
-        JSON.stringify({
+      try {
+        const payload = JSON.stringify({
           type: "requestGameStateSync",
           timestamp: Date.now(),
-        })
+        });
+        this.dataChannel.send(payload);
+        console.log(
+          "[SYNC DEBUG] requestGameStateSync sent successfully, bytes:",
+          payload.length
+        );
+        // Update heartbeat timestamp since we successfully sent data (connection is alive)
+        this.lastHeartbeatReceived = Date.now();
+      } catch (error) {
+        console.error("[SYNC DEBUG] requestGameStateSync send FAILED:", error);
+      }
+    } else {
+      console.warn(
+        "[SYNC DEBUG] requestGameStateSync - dataChannel not ready!"
       );
-      // console.log('Requested game state sync from peer');
-      // Update heartbeat timestamp since we successfully sent data (connection is alive)
-      this.lastHeartbeatReceived = Date.now();
     }
   }
 
