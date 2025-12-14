@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { COLORS } from "../../utils/constants";
+import { TIMER_CONFIG } from "../../config/timerConfig";
 
 const Timer = React.memo(
   ({
@@ -14,7 +15,9 @@ const Timer = React.memo(
     onTimeout, // New callback for when timer runs out
     isGameOver = false, // New prop to stop timer when game ends
   }) => {
-    const [displayTime, setDisplayTime] = useState(180000); // 3 minutes in ms
+    const [displayTime, setDisplayTime] = useState(
+      TIMER_CONFIG.getTimeValue(TIMER_CONFIG.DEFAULT)
+    ); // Initial time from config
 
     useEffect(() => {
       // Don't run timer logic if in single player mode, not connected (for multiplayer), reconnecting, or game is over

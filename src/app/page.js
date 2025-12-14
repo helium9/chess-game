@@ -6,6 +6,7 @@ import Navbar from "../components/ui/Navbar.jsx";
 import useWebRTC from "../hooks/useWebRTC.js";
 import { createInitialGameState } from "../utils/gameState.js";
 import { COLORS } from "../utils/constants.js";
+import { TIMER_CONFIG } from "../config/timerConfig.js";
 import { findBestMoveParallel } from "../ai/alphaBeta.js";
 import { AI_DIFFICULTY } from "../ai/constants.js";
 import { Analytics } from "@vercel/analytics/react";
@@ -28,10 +29,13 @@ export default function Home() {
 
   const [isAiThinking, setIsAiThinking] = useState(false);
   const [aiDifficulty, setAiDifficulty] = useState("MEDIUM");
+  const [selectedTimeControl, setSelectedTimeControl] = useState(
+    TIMER_CONFIG.DEFAULT
+  );
 
   const timerStateRef = useRef({
-    whiteTime: 180000,
-    blackTime: 180000,
+    whiteTime: TIMER_CONFIG.getTimeValue(TIMER_CONFIG.DEFAULT),
+    blackTime: TIMER_CONFIG.getTimeValue(TIMER_CONFIG.DEFAULT),
     lastUpdate: Date.now(),
   });
 
@@ -239,24 +243,32 @@ export default function Home() {
     }
   };
 
-  const startEngineGame = useCallback(() => {
-    console.log("Starting engine game (vs AI)");
+  const startEngineGame = useCallback(
+    (timeControl = selectedTimeControl) => {
+      console.log(
+        "Starting engine game (vs AI) with time control:",
+        timeControl
+      );
 
-    webRTC.updateGameMode("vsEngine");
-    webRTC.updatePlayerColor(COLORS.WHITE);
+      webRTC.updateGameMode("vsEngine");
+      webRTC.updatePlayerColor(COLORS.WHITE);
 
-    const initialState = createInitialGameState();
-    gameStateRef.current = initialState;
-    setGameState(initialState);
+      const initialState = createInitialGameState();
+      gameStateRef.current = initialState;
+      setGameState(initialState);
 
-    timerStateRef.current = {
-      whiteTime: 180000,
-      blackTime: 180000,
-      lastUpdate: Date.now(),
-    };
+      const timeValue = TIMER_CONFIG.getTimeValue(timeControl);
+      timerStateRef.current = {
+        whiteTime: timeValue,
+        blackTime: timeValue,
+        lastUpdate: Date.now(),
+      };
 
-    setIsAiThinking(false);
-  }, [webRTC]);
+      setSelectedTimeControl(timeControl);
+      setIsAiThinking(false);
+    },
+    [webRTC, selectedTimeControl]
+  );
 
   const handleResetToSinglePlayer = useCallback(() => {
     console.log("Resetting to single player mode");
@@ -268,12 +280,14 @@ export default function Home() {
     gameStateRef.current = initialState;
     setGameState(initialState);
 
+    const timeValue = TIMER_CONFIG.getTimeValue(TIMER_CONFIG.DEFAULT);
     timerStateRef.current = {
-      whiteTime: 180000,
-      blackTime: 180000,
+      whiteTime: timeValue,
+      blackTime: timeValue,
       lastUpdate: Date.now(),
     };
 
+    setSelectedTimeControl(TIMER_CONFIG.DEFAULT);
     setIsAiThinking(false);
   }, [webRTC]);
 
@@ -327,9 +341,32 @@ export default function Home() {
             );
           }
         } else if (innerMessage.type === "playerAssignment") {
+          // WRAPPED MESSAGE HANDLER: Receives messages from WebRTC service
+          // that are wrapped in { type: "gameState", data: {...} } format
           isReceivingRemoteState.current = true;
           gameStateRef.current = innerMessage.initialGameState;
           setGameState(innerMessage.initialGameState);
+
+          // Initialize timer from host's selected time control
+          if (innerMessage.timeControl) {
+            const timeValue = TIMER_CONFIG.getTimeValue(
+              innerMessage.timeControl
+            );
+            timerStateRef.current = {
+              whiteTime: timeValue,
+              blackTime: timeValue,
+              lastUpdate: Date.now(),
+            };
+            setSelectedTimeControl(innerMessage.timeControl);
+            console.log(
+              "Timer initialized from host:",
+              innerMessage.timeControl,
+              "->",
+              timeValue,
+              "ms"
+            );
+          }
+
           setTimeout(() => {
             isReceivingRemoteState.current = false;
           }, 100);
@@ -374,9 +411,30 @@ export default function Home() {
           isReceivingRemoteState.current = false;
         }, 100);
       } else if (message.type === "playerAssignment") {
+        // DIRECT MESSAGE HANDLER: Fallback for unwrapped messages
+        // sent directly through data channel (backwards compatibility)
         isReceivingRemoteState.current = true;
         gameStateRef.current = message.initialGameState;
         setGameState(message.initialGameState);
+
+        // Initialize timer from host's selected time control
+        if (message.timeControl) {
+          const timeValue = TIMER_CONFIG.getTimeValue(message.timeControl);
+          timerStateRef.current = {
+            whiteTime: timeValue,
+            blackTime: timeValue,
+            lastUpdate: Date.now(),
+          };
+          setSelectedTimeControl(message.timeControl);
+          console.log(
+            "Timer initialized from host (direct):",
+            message.timeControl,
+            "->",
+            timeValue,
+            "ms"
+          );
+        }
+
         setTimeout(() => {
           isReceivingRemoteState.current = false;
         }, 100);
@@ -416,24 +474,51 @@ export default function Home() {
           hostColor: COLORS.WHITE,
           guestColor: COLORS.BLACK,
           initialGameState: gameStateRef.current,
+          timeControl: selectedTimeControl, // Send time control name to guest
         });
       });
     }
   }, [webRTC.setOnDataChannelOpen, webRTC.gameMode, webRTC]);
 
+  // Separate effect for resetting when switching TO singlePlayer mode (not when already in it)
+  const previousGameMode = useRef(webRTC.gameMode);
+
   useEffect(() => {
-    if (webRTC.gameMode === "singlePlayer") {
+    const currentMode = webRTC.gameMode;
+    const prevMode = previousGameMode.current;
+
+    // Only reset when SWITCHING TO singlePlayer from another mode
+    if (
+      currentMode === "singlePlayer" &&
+      prevMode !== "singlePlayer" &&
+      prevMode !== currentMode
+    ) {
       const initialState = createInitialGameState();
       gameStateRef.current = initialState;
       setGameState(initialState);
+
+      const timeValue = TIMER_CONFIG.getTimeValue(TIMER_CONFIG.DEFAULT);
       timerStateRef.current = {
-        whiteTime: 180000,
-        blackTime: 180000,
+        whiteTime: timeValue,
+        blackTime: timeValue,
         lastUpdate: Date.now(),
       };
+
+      setSelectedTimeControl(TIMER_CONFIG.DEFAULT);
       setIsAiThinking(false);
+    } else if (currentMode === "host") {
+      // When becoming host, initialize timer with selected time control
+      const timeValue = TIMER_CONFIG.getTimeValue(selectedTimeControl);
+      timerStateRef.current = {
+        whiteTime: timeValue,
+        blackTime: timeValue,
+        lastUpdate: Date.now(),
+      };
     }
-  }, [webRTC.gameMode]);
+
+    // Update previous mode for next comparison
+    previousGameMode.current = currentMode;
+  }, [webRTC.gameMode, selectedTimeControl]);
 
   useEffect(() => {
     if (
@@ -467,6 +552,9 @@ export default function Home() {
         onStartEngineGame={startEngineGame}
         aiDifficulty={aiDifficulty}
         onDifficultyChange={setAiDifficulty}
+        selectedTimeControl={selectedTimeControl}
+        onTimeControlChange={setSelectedTimeControl}
+        isGameStarted={webRTC.isConnected || webRTC.gameMode === "vsEngine"}
       />
 
       {webRTC.isReconnecting && (

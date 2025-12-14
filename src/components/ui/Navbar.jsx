@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { TIMER_CONFIG } from "../../config/timerConfig";
 
 const Navbar = ({
   webRTC,
@@ -8,6 +9,9 @@ const Navbar = ({
   onStartEngineGame,
   aiDifficulty,
   onDifficultyChange,
+  selectedTimeControl,
+  onTimeControlChange,
+  isGameStarted = false,
 }) => {
   const [receiverIdInput, setReceiverIdInput] = useState("");
   const [messages, setMessages] = useState([]);
@@ -287,20 +291,52 @@ const Navbar = ({
           <div className="flex flex-col lg:flex-row flex-wrap items-center justify-center gap-2 w-full lg:w-auto">
             {!isConnected && !isConnecting && gameMode !== "vsEngine" && (
               <>
+                {/* Shared Time Control Dropdown */}
+                <select
+                  value={selectedTimeControl}
+                  onChange={(e) => onTimeControlChange(e.target.value)}
+                  disabled={isGameStarted}
+                  className={`text-white text-xs lg:text-sm px-2 py-1.5 lg:py-2 rounded-lg border focus:outline-none focus:border-blue-400 transition-colors ${
+                    isGameStarted
+                      ? "bg-gray-600 border-gray-500 cursor-not-allowed opacity-60"
+                      : "bg-slate-700 hover:bg-slate-600 border-slate-600 cursor-pointer"
+                  }`}
+                  title="Select time control"
+                >
+                  {Object.entries(TIMER_CONFIG.TIME_CONTROLS).map(
+                    ([key, config]) => (
+                      <option key={key} value={key}>
+                        ⏱️ {config.label}
+                      </option>
+                    )
+                  )}
+                </select>
+
                 {/* Engine Mode Button with Difficulty Selector */}
                 <div className="flex items-center gap-2 w-full sm:w-auto">
                   <button
-                    onClick={onStartEngineGame}
-                    className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1.5 lg:px-4 lg:py-2 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-1.5 text-xs lg:text-sm whitespace-nowrap flex-1 sm:flex-initial"
+                    onClick={() => onStartEngineGame(selectedTimeControl)}
+                    disabled={isGameStarted}
+                    className={`px-3 py-1.5 lg:px-4 lg:py-2 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-1.5 text-xs lg:text-sm whitespace-nowrap flex-1 sm:flex-initial ${
+                      isGameStarted
+                        ? "bg-gray-600 cursor-not-allowed opacity-60"
+                        : "bg-purple-600 hover:bg-purple-700 text-white"
+                    }`}
                     title="Play against AI"
                   >
                     <span>🤖</span>
                     <span>Play vs AI</span>
                   </button>
+
                   <select
                     value={aiDifficulty}
                     onChange={(e) => onDifficultyChange(e.target.value)}
-                    className="bg-purple-700 hover:bg-purple-800 text-white text-xs lg:text-sm px-2 py-1.5 lg:py-2 rounded-lg border border-purple-600 focus:outline-none focus:border-purple-400 transition-colors cursor-pointer"
+                    disabled={isGameStarted}
+                    className={`text-white text-xs lg:text-sm px-2 py-1.5 lg:py-2 rounded-lg border focus:outline-none focus:border-purple-400 transition-colors ${
+                      isGameStarted
+                        ? "bg-gray-600 border-gray-500 cursor-not-allowed opacity-60"
+                        : "bg-purple-700 hover:bg-purple-800 border-purple-600 cursor-pointer"
+                    }`}
                     title="Select AI difficulty"
                   >
                     <option value="EASY">🟢 Easy</option>
@@ -312,13 +348,20 @@ const Navbar = ({
                 {/* Multiplayer Separator */}
                 <div className="hidden lg:block w-px h-8 bg-slate-600"></div>
 
-                {/* Initiate Call Button */}
-                <button
-                  onClick={handleInitiateCall}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 lg:px-4 lg:py-2 rounded-lg font-medium transition-colors duration-200 text-xs lg:text-sm whitespace-nowrap w-full sm:w-auto"
-                >
-                  Start Game
-                </button>
+                {/* Multiplayer Start Game Button */}
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <button
+                    onClick={handleInitiateCall}
+                    disabled={isGameStarted}
+                    className={`px-3 py-1.5 lg:px-4 lg:py-2 rounded-lg font-medium transition-colors duration-200 text-xs lg:text-sm whitespace-nowrap ${
+                      isGameStarted
+                        ? "bg-gray-600 cursor-not-allowed opacity-60"
+                        : "bg-blue-600 hover:bg-blue-700 text-white"
+                    }`}
+                  >
+                    Start Game
+                  </button>
+                </div>
 
                 {/* Join Game Section */}
                 <div className="flex items-center gap-2 w-full lg:w-auto">
