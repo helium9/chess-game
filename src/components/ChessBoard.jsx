@@ -41,7 +41,13 @@ const ChessBoard = ({
   isReconnecting = false,
   isAiThinking = false,
   onResetToSinglePlayer = null,
+  onDisconnect = null,
+  sendDisconnectNotification = null,
 }) => {
+  // Idle timeout ref for disconnecting when no rematch is requested
+  const idleTimeoutRef = React.useRef(null);
+  // Idle timeout duration: 8 hours in milliseconds
+  const IDLE_TIMEOUT_MS = 8 * 60 * 60 * 1000;
   // Use external game state if provided, otherwise use internal state
   const [internalGameState, setInternalGameState] = useState(
     createInitialGameState()
@@ -587,24 +593,80 @@ const ChessBoard = ({
 
   const handleAcceptRematch = () => {
      setRematchState({ isOpen: false, requestFrom: null });
+     
+     // Clear any pending idle timeout
+     if (idleTimeoutRef.current) {
+        clearTimeout(idleTimeoutRef.current);
+        idleTimeoutRef.current = null;
+     }
+     
      // Reset game - this will create new state without 'rematchRequest' property
-     // and sync it to the opponent, effectively starting a new game (and closing their "waiting" state implicitely by state replacement)
+     // and sync it to the opponent, effectively starting a new game (and closing their "waiting" state implicitly by state replacement)
      resetGame();
   };
 
   const handleDeclineRematch = () => {
-     setRematchState({ isOpen: false, requestFrom: null });
-     setMessage("Rematch declined.");
-     // We should probably clear the request so the dialog doesn't pop up again or stuck state?
-     // Or maybe just local close is enough if we don't sync "Decline".
-     // Ideally we should sync decline.
-     const newGameState = {
-        ...gameState,
-        rematchRequest: null,
-        rematchDeclined: true 
-     };
-     updateGameState(newGameState);
-  };
+   setRematchState({ isOpen: false, requestFrom: null });
+   setMessage("Rematch declined. Disconnecting...");
+   
+   // Sync decline to opponent
+   const newGameState = {
+      ...gameState,
+      rematchRequest: null,
+      rematchDeclined: true 
+   };
+   updateGameState(newGameState);
+   
+   // Clear any pending idle timeout
+   if (idleTimeoutRef.current) {
+      clearTimeout(idleTimeoutRef.current);
+      idleTimeoutRef.current = null;
+   }
+   
+   // Disconnect after a short delay to allow the sync to complete
+   setTimeout(() => {
+      if (sendDisconnectNotification) {
+         sendDisconnectNotification();
+      }
+      if (onDisconnect) {
+         onDisconnect();
+      }
+   }, 500);
+};
+
+  // Listen for rematch declined by opponent - update message for the requesting player
+  useEffect(() => {
+    if (gameState.rematchDeclined && gameState.rematchRequest === null) {
+      // This means opponent declined the rematch, show message
+      // The actual disconnect will be triggered by the opponent via gracefulDisconnect
+      setMessage("Connection ended");
+    }
+  }, [gameState.rematchDeclined, gameState.rematchRequest]);
+
+  // Idle timeout: disconnect if no rematch is requested within 8 hours after game ends
+  useEffect(() => {
+    const isMultiplayer = gameMode === "host" || gameMode === "guest";
+    
+    // Only start timeout if game is over in multiplayer mode and connected
+    if (gameState.gameStatus?.isGameOver && isMultiplayer && isConnected) {
+      // Set an 8-hour timeout
+      const timeoutId = setTimeout(() => {
+        setMessage("Game ended 8 hours ago. Disconnecting due to inactivity.");
+        if (sendDisconnectNotification) {
+          sendDisconnectNotification();
+        }
+        if (onDisconnect) {
+          onDisconnect();
+        }
+      }, IDLE_TIMEOUT_MS);
+      idleTimeoutRef.current = timeoutId;
+      
+      return () => {
+        clearTimeout(timeoutId);
+        idleTimeoutRef.current = null;
+      };
+    }
+  }, [gameState.gameStatus?.isGameOver, gameMode, isConnected, onDisconnect, sendDisconnectNotification]);
 
 
   return (

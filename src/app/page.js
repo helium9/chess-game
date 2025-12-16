@@ -620,6 +620,8 @@ export default function Home() {
         isReconnecting={webRTC.isReconnecting}
         isAiThinking={isAiThinking}
         onResetToSinglePlayer={handleResetToSinglePlayer}
+        onDisconnect={webRTC.disconnect}
+        sendDisconnectNotification={webRTC.sendDisconnectNotification}
       />
     </div>
   );
