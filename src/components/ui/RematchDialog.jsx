@@ -1,7 +1,23 @@
 import React from 'react';
 
-const RematchDialog = ({ isOpen, onAccept, onDecline, requestFrom }) => {
+const RematchDialog = ({ isOpen, onAccept, onDecline, requestFrom, proposedTimer }) => {
   if (!isOpen) return null;
+
+  // Format timer display
+  const getTimerDisplay = (timer) => {
+    if (!timer) return null;
+    const timerLabels = {
+      BLITZ_3: "3 min",
+      BLITZ_5: "5 min",
+      RAPID_10: "10 min",
+      RAPID_15: "15 min",
+      CLASSICAL_30: "30 min",
+      NO_LIMIT: "No limit",
+    };
+    return timerLabels[timer] || timer;
+  };
+
+  const timerDisplay = getTimerDisplay(proposedTimer);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
@@ -14,12 +30,29 @@ const RematchDialog = ({ isOpen, onAccept, onDecline, requestFrom }) => {
           Rematch Requested!
         </h2>
         
-        <p className="text-gray-300 text-center mb-8 relative z-10 text-lg">
+        <p className="text-gray-300 text-center mb-2 relative z-10 text-lg">
           <span className="font-semibold text-amber-400">
             {requestFrom === 'white' ? 'White' : 'Black'}
           </span>
           {' '}wants to play again.
         </p>
+
+        {/* Display proposed timer if available */}
+        {timerDisplay && (
+          <p className="text-center mb-6 relative z-10">
+            <span className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600/30 rounded-lg border border-purple-500/50">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-purple-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+              </svg>
+              <span className="text-purple-300 font-medium">Proposed timer: </span>
+              <span className="text-white font-bold">{timerDisplay}</span>
+            </span>
+          </p>
+        )}
+
+        {!timerDisplay && (
+          <div className="mb-6"></div>
+        )}
 
         <div className="flex gap-4 justify-center relative z-10">
           <button

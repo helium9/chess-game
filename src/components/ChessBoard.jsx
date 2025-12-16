@@ -48,6 +48,7 @@ const ChessBoard = ({
   onResetToSinglePlayer = null,
   onDisconnect = null,
   sendDisconnectNotification = null,
+  selectedTimeControl = null,
 }) => {
   // Use external game state if provided, otherwise use internal state
   const [internalGameState, setInternalGameState] = useState(
@@ -205,6 +206,7 @@ const ChessBoard = ({
     clearSelection,
     exitCombineMode,
     exitDeCombineMode,
+    selectedTimeControl,
   });
 
   // Idle timeout hook
@@ -233,6 +235,7 @@ const ChessBoard = ({
     isConnected,
     onDisconnect,
     sendDisconnectNotification,
+    selectedTimeControl,
   });
 
   // Keyboard handler
@@ -565,6 +568,7 @@ const ChessBoard = ({
         <RematchDialog
           isOpen={rematchState.isOpen}
           requestFrom={rematchState.requestFrom}
+          proposedTimer={rematchState.proposedTimer}
           onAccept={handleAcceptRematch}
           onDecline={handleDeclineRematch}
         />

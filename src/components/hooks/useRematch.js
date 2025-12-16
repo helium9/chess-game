@@ -4,18 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 
 /**
  * Hook to handle rematch functionality: request, accept, decline, and related state.
- * 
- * @param {Object} options - Hook options
- * @param {Object} options.gameState - Current game state
- * @param {Function} options.updateGameState - Callback to update game state
- * @param {Function} options.setMessage - Callback to set status message
- * @param {string} options.playerColor - Player's color ('white' or 'black')
- * @param {Function} options.resetGame - Callback to reset the game
- * @param {Function} options.clearIdleTimeout - Callback to clear idle timeout
- * @param {boolean} options.isConnected - Whether WebRTC is connected
- * @param {Function} options.onDisconnect - Callback to disconnect WebRTC
- * @param {Function} options.sendDisconnectNotification - Callback to notify peer of disconnect
- * @returns {Object} - Rematch state and handlers
+ * Now includes selectedTimeControl to show proposed timer in rematch request.
  */
 const useRematch = ({
   gameState,
@@ -27,11 +16,13 @@ const useRematch = ({
   isConnected = false,
   onDisconnect = null,
   sendDisconnectNotification = null,
+  selectedTimeControl = null,
 }) => {
   // Rematch dialog state
   const [rematchState, setRematchState] = useState({
     isOpen: false,
     requestFrom: null,
+    proposedTimer: null, // Timer proposed by the requester
   });
 
   // Ref to track if we're showing the "connection ended" message
@@ -42,42 +33,49 @@ const useRematch = ({
     const newGameState = {
       ...gameState,
       rematchRequest: playerColor,
+      rematchTimer: selectedTimeControl, // Include the selected timer in the request
     };
     updateGameState(newGameState);
-    setMessage("Rematch requested... waiting for opponent.");
-  }, [gameState, playerColor, updateGameState, setMessage]);
+    setMessage(`Rematch requested with ${selectedTimeControl || "current"} timer... waiting for opponent.`);
+  }, [gameState, playerColor, selectedTimeControl, updateGameState, setMessage]);
 
   // Listen for incoming rematch requests
   useEffect(() => {
     if (gameState.rematchRequest && gameState.rematchRequest !== playerColor) {
-      // Opponent requested rematch
-      setRematchState({ isOpen: true, requestFrom: gameState.rematchRequest });
+      // Opponent requested rematch - include their proposed timer
+      setRematchState({ 
+        isOpen: true, 
+        requestFrom: gameState.rematchRequest,
+        proposedTimer: gameState.rematchTimer || null,
+      });
     }
-  }, [gameState.rematchRequest, playerColor]);
+  }, [gameState.rematchRequest, gameState.rematchTimer, playerColor]);
 
   // Handle Accept Rematch
   const handleAcceptRematch = useCallback(() => {
-    setRematchState({ isOpen: false, requestFrom: null });
+    setRematchState({ isOpen: false, requestFrom: null, proposedTimer: null });
 
     // Clear any pending idle timeout
     if (clearIdleTimeout) {
       clearIdleTimeout();
     }
 
-    // Reset game - this will create new state without 'rematchRequest' property
-    // and sync it to the opponent, effectively starting a new game
-    resetGame();
-  }, [clearIdleTimeout, resetGame]);
+    // Reset game with the proposed timer from the rematch request
+    // This ensures both players use the timer that was proposed
+    const proposedTimer = gameState.rematchTimer || null;
+    resetGame(proposedTimer);
+  }, [clearIdleTimeout, resetGame, gameState.rematchTimer]);
 
   // Handle Decline Rematch
   const handleDeclineRematch = useCallback(() => {
-    setRematchState({ isOpen: false, requestFrom: null });
+    setRematchState({ isOpen: false, requestFrom: null, proposedTimer: null });
     setMessage("Rematch declined. Disconnecting...");
 
     // Sync decline to opponent
     const newGameState = {
       ...gameState,
       rematchRequest: null,
+      rematchTimer: null,
       rematchDeclined: true,
     };
     updateGameState(newGameState);

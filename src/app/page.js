@@ -601,7 +601,7 @@ export default function Home() {
         onDifficultyChange={setAiDifficulty}
         selectedTimeControl={selectedTimeControl}
         onTimeControlChange={setSelectedTimeControl}
-        isGameStarted={webRTC.isConnected || webRTC.gameMode === "vsEngine"}
+        isGameStarted={(webRTC.isConnected || webRTC.gameMode === "vsEngine") && !gameState.gameStatus?.isGameOver}
       />
 
       {webRTC.error && (
@@ -641,6 +641,7 @@ export default function Home() {
         onResetToSinglePlayer={handleResetToSinglePlayer}
         onDisconnect={webRTC.disconnect}
         sendDisconnectNotification={webRTC.sendDisconnectNotification}
+        selectedTimeControl={selectedTimeControl}
       />
     </div>
   );

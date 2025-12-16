@@ -33,6 +33,7 @@ const useGameControls = ({
   clearSelection,
   exitCombineMode,
   exitDeCombineMode,
+  selectedTimeControl = null,
 }) => {
   // Handle Undo
   const handleUndo = useCallback(() => {
@@ -74,11 +75,13 @@ const useGameControls = ({
     }
   }, [gameMode, gameState, updateGameState, clearSelection, setMessage]);
 
-  // Reset Game
-  const resetGame = useCallback(() => {
+  // Reset Game - accepts optional timerOverride for rematch scenarios
+  const resetGame = useCallback((timerOverride = null) => {
     // Reset timer if available
+    // Priority: timerOverride (from rematch) > selectedTimeControl > DEFAULT
     if (timerStateRef) {
-      const initialTime = TIMER_CONFIG.getTimeValue(TIMER_CONFIG.DEFAULT);
+      const timeControlToUse = timerOverride || selectedTimeControl || TIMER_CONFIG.DEFAULT;
+      const initialTime = TIMER_CONFIG.getTimeValue(timeControlToUse);
       timerStateRef.current.whiteTime = initialTime;
       timerStateRef.current.blackTime = initialTime;
       timerStateRef.current.lastUpdate = Date.now();
@@ -112,6 +115,7 @@ const useGameControls = ({
     exitCombineMode,
     exitDeCombineMode,
     setMessage,
+    selectedTimeControl,
   ]);
 
   // Handle Resign
