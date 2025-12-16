@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   createInitialGameState,
   canUndo,
@@ -82,6 +82,10 @@ const ChessBoard = ({
   };
 
   const [message, setMessage] = useState("White to move");
+
+  // Double-tap tracking refs
+  const lastClickedSquare = useRef(null);
+  const lastClickTime = useRef(0);
 
   // Determine if board should be flipped (Black player in multiplayer)
   const isBoardFlipped =
@@ -253,61 +257,7 @@ const ChessBoard = ({
     return () => window.removeEventListener("keydown", handleKeyPress);
   }, [combineMode, deCombine.mode, exitCombineMode, handleDeCombineEscape]);
 
-  // Handle Double-Tap (Gesture for Combine/De-Combine)
-  const handleDoubleTap = (row, col) => {
-    if (gameState.gameStatus?.isGameOver) return;
-
-    const piece = gameState.board[row][col];
-    if (!canMakeMove(piece, [row, col])) {
-      return;
-    }
-
-    // Try De-Combine Mode first (Priority if Hybrid)
-    if (isHybridPiece(piece)) {
-      const isEligibleHybrid = eligibleHybrids.some(
-        (h) => h.row === row && h.col === col
-      );
-      if (!isEligibleHybrid) return;
-
-      if (combineMode) exitCombineMode();
-      clearSelection();
-      enterDeCombineMode({ row, col });
-    }
-    // Try Combine Mode
-    else {
-      const partnersThisPieceCanReach = eligiblePairs.filter((pair) => {
-        if (pair.piece1.row === row && pair.piece1.col === col) {
-          return canReachForCombine(
-            gameState.board,
-            row,
-            col,
-            pair.piece2.row,
-            pair.piece2.col,
-            gameState.currentTurn
-          );
-        }
-        if (pair.piece2.row === row && pair.piece2.col === col) {
-          return canReachForCombine(
-            gameState.board,
-            row,
-            col,
-            pair.piece1.row,
-            pair.piece1.col,
-            gameState.currentTurn
-          );
-        }
-        return false;
-      });
-
-      if (partnersThisPieceCanReach.length === 0) return;
-
-      if (deCombine.mode) exitDeCombineMode();
-      clearSelection();
-      enterCombineMode({ row, col });
-    }
-  };
-
-  // Route square clicks with move validation
+  // Route square clicks with move validation and double-tap detection
   const handleSquareClick = (row, col) => {
     if (gameState.gameStatus?.isGameOver) {
       setMessage("Game is over. Please reset to start a new game.");
@@ -315,6 +265,75 @@ const ChessBoard = ({
     }
 
     const piece = gameState.board[row][col];
+    const currentTime = Date.now();
+    const timeSinceLastClick = currentTime - lastClickTime.current;
+
+    // DOUBLE-TAP DETECTION: Check if clicking same square within 300ms
+    if (
+      lastClickedSquare.current &&
+      lastClickedSquare.current.row === row &&
+      lastClickedSquare.current.col === col &&
+      timeSinceLastClick < 300 &&
+      timeSinceLastClick > 0
+    ) {
+      // Double-tap detected on same square
+      lastClickedSquare.current = null;
+      lastClickTime.current = 0;
+
+      // Only process double-tap if piece can make moves
+      if (piece && canMakeMove(piece, [row, col])) {
+        // Try De-Combine Mode first (Priority if Hybrid)
+        if (isHybridPiece(piece)) {
+          const isEligibleHybrid = eligibleHybrids.some(
+            (h) => h.row === row && h.col === col
+          );
+          if (isEligibleHybrid) {
+            if (combineMode) exitCombineMode();
+            clearSelection();
+            enterDeCombineMode({ row, col });
+            return;
+          }
+        }
+        // Try Combine Mode
+        else {
+          const partnersThisPieceCanReach = eligiblePairs.filter((pair) => {
+            if (pair.piece1.row === row && pair.piece1.col === col) {
+              return canReachForCombine(
+                gameState.board,
+                row,
+                col,
+                pair.piece2.row,
+                pair.piece2.col,
+                gameState.currentTurn
+              );
+            }
+            if (pair.piece2.row === row && pair.piece2.col === col) {
+              return canReachForCombine(
+                gameState.board,
+                row,
+                col,
+                pair.piece1.row,
+                pair.piece1.col,
+                gameState.currentTurn
+              );
+            }
+            return false;
+          });
+
+          if (partnersThisPieceCanReach.length > 0) {
+            if (deCombine.mode) exitDeCombineMode();
+            clearSelection();
+            enterCombineMode({ row, col });
+            return;
+          }
+        }
+      }
+      // If double-tap but not eligible, fall through to normal click handling
+    }
+
+    // Update last click tracking
+    lastClickedSquare.current = { row, col };
+    lastClickTime.current = currentTime;
 
     // DE-COMBINE MODE
     if (deCombine.mode) {
@@ -487,7 +506,6 @@ const ChessBoard = ({
                 isSelectedSpawnSquare={isSelectedSpawnSquare}
                 deCombine={deCombine}
                 handleSquareClick={handleSquareClick}
-                handleDoubleTap={handleDoubleTap}
               />
             </div>
 

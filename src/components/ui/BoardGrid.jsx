@@ -27,15 +27,13 @@ const BoardGrid = ({
   deCombine,
   // Event handlers
   handleSquareClick,
-  handleDoubleTap,
 }) => {
   return (
     <div className="flex flex-col items-center max-w-full">
       <div
         className="grid grid-cols-8 gap-0 border-2 sm:border-4 md:border-8 border-gradient-to-br from-amber-700 via-yellow-800 to-amber-900 shadow-2xl overflow-hidden backdrop-blur-sm transition-transform duration-300"
         style={{
-          borderImage:
-            "linear-gradient(135deg, #d97706, #b45309, #92400e) 1",
+          borderImage: "linear-gradient(135deg, #d97706, #b45309, #92400e) 1",
           transform: isBoardFlipped ? "rotate(180deg)" : "rotate(0deg)",
           willChange: "transform",
           backfaceVisibility: "hidden",
@@ -125,7 +123,6 @@ const BoardGrid = ({
                 isLightSquare={isLightSquare}
                 highlightState={highlightState}
                 onClick={handleSquareClick}
-                onDoubleTap={handleDoubleTap}
                 isBoardFlipped={isBoardFlipped}
               />
             );
