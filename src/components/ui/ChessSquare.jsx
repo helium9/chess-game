@@ -1,11 +1,14 @@
 "use client";
 
-import React from "react";
+import React, { useCallback } from "react";
 import { PIECE_SYMBOLS, isHybridPiece } from "../../utils/constants.js";
 import { getSquareStyling, getPieceStyling } from "../helpers/squareStyling.js";
+import useDoubleTap from "../hooks/useDoubleTap.js";
 
 /**
  * ChessSquare component - renders a single square on the chess board
+ * - Single tap: normal move/selection
+ * - Double tap: enter combine/decombine mode
  */
 const ChessSquare = ({
   row,
@@ -14,6 +17,7 @@ const ChessSquare = ({
   isLightSquare,
   highlightState,
   onClick,
+  onDoubleTap,
   isBoardFlipped = false,
 }) => {
   const styling = getSquareStyling(isLightSquare, highlightState);
@@ -27,15 +31,32 @@ const ChessSquare = ({
   const pieceColorClass =
     piece && piece === piece.toUpperCase() ? "text-white" : "text-gray-900";
 
+  // Double tap callback (for combine/decombine)
+  const handleDoubleTap = useCallback(() => {
+    if (onDoubleTap) {
+      onDoubleTap(row, col);
+    }
+  }, [onDoubleTap, row, col]);
+
+  // Single tap callback (normal move)
+  const handleSingleTap = useCallback(() => {
+    onClick(row, col);
+  }, [onClick, row, col]);
+
+  // Use double tap hook
+  const tapHandlers = useDoubleTap(handleDoubleTap, handleSingleTap, {
+    delay: 300, // 300ms between taps to count as double-tap
+  });
+
   return (
     <div
-      onClick={() => onClick(row, col)}
+      {...tapHandlers}
       className={`w-8 h-8 sm:w-12 sm:h-12 md:w-14 md:h-14 lg:w-16 lg:h-16 flex items-center justify-center ${squareColor} ${opacity}
-                hover:brightness-110 hover:scale-105 transition-all duration-200 cursor-pointer relative ${ringClass} ${extraEffects}`}
+                hover:brightness-110 hover:scale-105 transition-all duration-200 cursor-pointer relative ${ringClass} ${extraEffects} select-none`}
     >
       {piece && (
         <div
-          className="relative transform transition-transform hover:scale-110"
+          className="relative transform transition-transform hover:scale-110 pointer-events-none"
           style={{
             transform: isBoardFlipped ? "rotate(180deg)" : "rotate(0deg)",
           }}
@@ -53,7 +74,7 @@ const ChessSquare = ({
       )}
       {/* Indicator for empty legal moves */}
       {highlightState.isLegalMove && !piece && !highlightState.combineMode && (
-        <div className="w-2.5 h-2.5 sm:w-4 sm:h-4 md:w-5 md:h-5 bg-green-400 rounded-full opacity-70 shadow-lg animate-pulse"></div>
+        <div className="w-2.5 h-2.5 sm:w-4 sm:h-4 md:w-5 md:h-5 bg-green-400 rounded-full opacity-70 shadow-lg animate-pulse pointer-events-none"></div>
       )}
       {/* Indicator for capture moves */}
       {isCapture && (
@@ -64,3 +85,5 @@ const ChessSquare = ({
 };
 
 export default ChessSquare;
+
+

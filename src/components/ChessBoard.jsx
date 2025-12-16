@@ -9,7 +9,8 @@ import {
   canRedo,
   isCurrentPlayersPiece,
 } from "../utils/gameState.js";
-import { COLORS, getPieceColor } from "../utils/constants.js";
+import { COLORS, getPieceColor, isHybridPiece } from "../utils/constants.js";
+import { canReachForCombine } from "../utils/combinationRules.js";
 import { announceTurn, capitalizeColor } from "./helpers/messageHelpers.js";
 import { getAllLegalMoves } from "../ai/chessRules.js";
 import { getGameStatus } from "../utils/gameStatus.js";
@@ -25,8 +26,10 @@ import ChessSquare from "./ui/ChessSquare.jsx";
 import GameControls from "./ui/GameControls.jsx";
 import PromotionDialog from "./ui/PromotionDialog.jsx";
 import DeCombineConfirmDialog from "./ui/DeCombineConfirmDialog.jsx";
+import RematchDialog from "./ui/RematchDialog.jsx";
 import GameLegend from "./ui/GameLegend.jsx";
 import Timer from "./ui/Timer.jsx";
+import { TIMER_CONFIG } from "../config/timerConfig.js";
 
 const ChessBoard = ({
   gameState: externalGameState = null,
@@ -238,6 +241,7 @@ const ChessBoard = ({
   const {
     combineMode,
     eligiblePairs,
+    combineAnchor,
     enterCombineMode,
     exitCombineMode,
     handleCombineClick,
@@ -277,6 +281,77 @@ const ChessBoard = ({
     return () => window.removeEventListener("keydown", handleKeyPress);
   }, [combineMode, deCombine.mode, exitCombineMode, handleDeCombineEscape]);
 
+  // Handle Double-Tap (Gesture for Combine/De-Combine)
+  const handleDoubleTap = (row, col) => {
+    // Prevent if game is over
+    if (gameState.gameStatus?.isGameOver) return;
+    
+    // Check if we can select this piece (my turn, my piece)
+    const piece = gameState.board[row][col];
+
+    if (!canMakeMove(piece, [row, col])) {
+      return; 
+    }
+    
+    // 1. Try De-Combine Mode first (Priority if Hybrid)
+    if (isHybridPiece(piece)) {
+      // Check if this specific hybrid is eligible for de-combination
+      // eligibleHybrids structure: { row, col, piece, spawnSquares }
+      const isEligibleHybrid = eligibleHybrids.some(
+        (h) => h.row === row && h.col === col
+      );
+
+      if (!isEligibleHybrid) return;
+
+      // If we are already in combine mode, exit it
+      if (combineMode) exitCombineMode();
+      
+      // Clear any normal selection
+      clearSelection();
+      
+      // Enter De-Combine Mode with this piece selected
+      enterDeCombineMode({ row, col });
+    }
+    // 2. Try Combine Mode
+    else {
+      // NEW LOGIC: Check if THIS piece (the one being held) can reach a combinable partner
+      // Not symmetric - only the held piece should be able to move to partner
+      const partnersThisPieceCanReach = eligiblePairs.filter(pair => {
+        // Check if this piece is piece1 and can reach piece2
+        if (pair.piece1.row === row && pair.piece1.col === col) {
+          // Verify THIS piece can actually reach the partner (not the reverse)
+          return canReachForCombine(
+            gameState.board, 
+            row, col, 
+            pair.piece2.row, pair.piece2.col, 
+            gameState.currentTurn
+          );
+        }
+        // Check if this piece is piece2 and can reach piece1
+        if (pair.piece2.row === row && pair.piece2.col === col) {
+          return canReachForCombine(
+            gameState.board, 
+            row, col, 
+            pair.piece1.row, pair.piece1.col, 
+            gameState.currentTurn
+          );
+        }
+        return false;
+      });
+
+      if (partnersThisPieceCanReach.length === 0) return;
+
+      // If we are already in de-combine mode, exit it
+      if (deCombine.mode) exitDeCombineMode();
+      
+      // Clear any normal selection
+      clearSelection();
+      
+      // Enter Combine Mode with this piece selected
+      enterCombineMode({ row, col });
+    }
+  };
+
   // Route square clicks with move validation
   const handleSquareClick = (row, col) => {
     // Prevent moves if game is over
@@ -287,9 +362,55 @@ const ChessBoard = ({
 
     const piece = gameState.board[row][col];
 
-    // For piece selection, check if we can move this piece
+    // DE-COMBINE MODE
+    if (deCombine.mode) {
+      // In LOCAL mode (double-tap), hybrid is already selected
+      if (deCombine.isLocalMode && deCombine.activeHybrid) {
+        // Check if clicking the hybrid itself
+        if (deCombine.activeHybrid.row === row && deCombine.activeHybrid.col === col) {
+          return;
+        }
+        // Check if clicking a spawn square - use direct check against eligibleSquares
+        const isValidSpawn = deCombine.eligibleSquares.some(
+          sq => sq.row === row && sq.col === col
+        );
+        if (isValidSpawn) {
+          handleDeCombineClick(row, col);
+        } else {
+          exitDeCombineMode();
+        }
+      } 
+      // In GLOBAL mode (button), let hook handle everything
+      else {
+        handleDeCombineClick(row, col);
+      }
+      return;
+    }
+
+    // COMBINE MODE
+    if (combineMode) {
+      // In LOCAL mode (double-tap, anchor is set), only respond to partners or exit
+      if (combineAnchor) {
+        if (isEligiblePartner(row, col)) {
+          handleCombineClick(row, col);
+        } else if (isCombineAnchor(row, col)) {
+          // Clicking anchor again - do nothing
+          return;
+        } else {
+          // Clicked elsewhere - exit LOCAL mode
+          exitCombineMode();
+        }
+      }
+      // In GLOBAL mode (button, no anchor yet), let hook handle everything  
+      else {
+        handleCombineClick(row, col);
+      }
+      return;
+    }
+
+    // NORMAL MODE - handle piece selection and moves
+    // Check if we can move this piece
     if (piece && selectedSquare === null && !canMakeMove(piece, [row, col])) {
-      // console.log(`Cannot select piece ${piece} - not your piece or not your turn`);
       setMessage(
         `It's ${gameState.currentTurn}'s turn. You can only move ${
           playerColor || "any"
@@ -297,14 +418,8 @@ const ChessBoard = ({
       );
       return;
     }
-
-    if (deCombine.mode) {
-      handleDeCombineClick(row, col);
-    } else if (combineMode) {
-      handleCombineClick(row, col);
-    } else {
-      handleNormalMove(row, col);
-    }
+    
+    handleNormalMove(row, col);
   };
 
   const handleCombineToggle = () => {
@@ -388,6 +503,14 @@ const ChessBoard = ({
   };
 
   const resetGame = () => {
+    // Reset timer if available
+    if (timerStateRef) {
+      const initialTime = TIMER_CONFIG.getTimeValue(TIMER_CONFIG.DEFAULT);
+      timerStateRef.current.whiteTime = initialTime;
+      timerStateRef.current.blackTime = initialTime;
+      timerStateRef.current.lastUpdate = Date.now();
+    }
+
     // If in engine mode, reset to single player mode
     if (gameMode === "vsEngine") {
       if (onResetToSinglePlayer) {
@@ -408,6 +531,81 @@ const ChessBoard = ({
     exitDeCombineMode();
     setMessage("White to move");
   };
+
+  // Rematch state
+  const [rematchState, setRematchState] = useState({
+     isOpen: false,
+     requestFrom: null
+  });
+
+  // Handle Resign
+  const handleResign = () => {
+     if (gameState.gameStatus?.isGameOver) return;
+     
+     const winner = playerColor === COLORS.WHITE ? COLORS.BLACK : COLORS.WHITE;
+     const newGameState = {
+        ...gameState,
+        gameStatus: {
+           isGameOver: true,
+           winner: winner,
+           isResignation: true,
+           resignedBy: playerColor // Track who resigned
+        }
+     };
+     updateGameState(newGameState);
+     setMessage(`${capitalizeColor(playerColor)} resigned. ${capitalizeColor(winner)} wins!`);
+  };
+
+  // Listen for resignation (to notify opponent)
+  useEffect(() => {
+    if (gameState.gameStatus?.isResignation && gameState.gameStatus?.resignedBy) {
+      const resignedBy = gameState.gameStatus.resignedBy;
+      const winner = gameState.gameStatus.winner;
+      // Show message regardless of which player we are
+      setMessage(`${capitalizeColor(resignedBy)} resigned. ${capitalizeColor(winner)} wins!`);
+    }
+  }, [gameState.gameStatus?.isResignation, gameState.gameStatus?.resignedBy, gameState.gameStatus?.winner]);
+
+  // Handle Rematch Request (Initiate)
+  const handleRematchRequest = () => {
+     // Update game state with rematch request to sync with opponent
+     const newGameState = {
+        ...gameState,
+        rematchRequest: playerColor
+     };
+     updateGameState(newGameState);
+     setMessage("Rematch requested... waiting for opponent.");
+  };
+
+  // Listen for incoming rematch requests
+  useEffect(() => {
+    if (gameState.rematchRequest && gameState.rematchRequest !== playerColor) {
+        // Opponent requested rematch
+        setRematchState({ isOpen: true, requestFrom: gameState.rematchRequest });
+    }
+  }, [gameState.rematchRequest, playerColor]);
+
+  const handleAcceptRematch = () => {
+     setRematchState({ isOpen: false, requestFrom: null });
+     // Reset game - this will create new state without 'rematchRequest' property
+     // and sync it to the opponent, effectively starting a new game (and closing their "waiting" state implicitely by state replacement)
+     resetGame();
+  };
+
+  const handleDeclineRematch = () => {
+     setRematchState({ isOpen: false, requestFrom: null });
+     setMessage("Rematch declined.");
+     // We should probably clear the request so the dialog doesn't pop up again or stuck state?
+     // Or maybe just local close is enough if we don't sync "Decline".
+     // Ideally we should sync decline.
+     const newGameState = {
+        ...gameState,
+        rematchRequest: null,
+        rematchDeclined: true 
+     };
+     updateGameState(newGameState);
+  };
+
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-0 sm:p-4 relative overflow-hidden">
@@ -488,6 +686,39 @@ const ChessBoard = ({
                   {gameState.board.map((row, rowIndex) =>
                     row.map((piece, colIndex) => {
                       const isLightSquare = (rowIndex + colIndex) % 2 === 0;
+
+                      // Last move highlighting logic
+                      let isLastMoveSource = false;
+                      let isLastMoveTarget = false;
+                      
+                      const lastMove = gameState.moveHistory.length > 0 ? gameState.moveHistory[gameState.moveHistory.length - 1] : null;
+                      
+                      if (lastMove) {
+                         if (lastMove.type === 'castle') {
+                            // TODO: Highlight castling squares if desired
+                         } else if (lastMove.type === 'combination') {
+                            if (lastMove.placement.row === rowIndex && lastMove.placement.col === colIndex) {
+                               isLastMoveTarget = true;
+                            }
+                            // Highlight original pieces positions? Maybe not needed as they are gone.
+                         } else if (lastMove.type === 'de-combine') {
+                            if (lastMove.selectedSquare.row === rowIndex && lastMove.selectedSquare.col === colIndex) {
+                               isLastMoveTarget = true; // Spawn square
+                            }
+                            if (lastMove.hybridSquare.row === rowIndex && lastMove.hybridSquare.col === colIndex) {
+                               isLastMoveSource = true; // Original hybrid square
+                            }
+                         } else if (lastMove.from && lastMove.to) {
+                             // Normal move
+                             if (lastMove.from.row === rowIndex && lastMove.from.col === colIndex) {
+                                isLastMoveSource = true;
+                             }
+                             if (lastMove.to.row === rowIndex && lastMove.to.col === colIndex) {
+                                isLastMoveTarget = true;
+                             }
+                         }
+                      }
+
                       const highlightState = {
                         selected: isSelected(rowIndex, colIndex),
                         isLegalMove: isLegalMoveSquare(rowIndex, colIndex),
@@ -505,7 +736,13 @@ const ChessBoard = ({
                           colIndex
                         ),
                         combineMode,
+                        hasAnchor: !!combineAnchor,
+                        isLocalCombine: combineMode && !!combineAnchor, // Local if anchor set (via double-tap)
                         deCombineMode: deCombine.mode,
+                        hasActiveHybrid: !!deCombine.activeHybrid,
+                        isLocalDeCombine: deCombine.isLocalMode,
+                        isLastMoveSource,
+                        isLastMoveTarget
                       };
 
                       return (
@@ -517,6 +754,7 @@ const ChessBoard = ({
                           isLightSquare={isLightSquare}
                           highlightState={highlightState}
                           onClick={handleSquareClick}
+                          onDoubleTap={handleDoubleTap}
                           isBoardFlipped={isBoardFlipped}
                         />
                       );
@@ -588,6 +826,8 @@ const ChessBoard = ({
           onCombineToggle={handleCombineToggle}
           onDeCombineToggle={handleDeCombineToggle}
           onReset={resetGame}
+          onResign={handleResign}
+          onRematchRequest={handleRematchRequest}
           combineMode={combineMode}
           deCombineMode={deCombine.mode}
           promotionMode={promotionDialog.isOpen}
@@ -611,6 +851,13 @@ const ChessBoard = ({
               onCancel={closeConfirmDialog}
             />
           )}
+
+        <RematchDialog
+           isOpen={rematchState.isOpen}
+           requestFrom={rematchState.requestFrom}
+           onAccept={handleAcceptRematch}
+           onDecline={handleDeclineRematch}
+        />
 
         <PromotionDialog
           isOpen={promotionDialog.isOpen}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { PIECE_SYMBOLS } from "../../utils/constants.js";
+import { switchTurn } from "../../utils/gameState.js";
 import {
   findPlayerHybrids,
   findSpawnSquares,
@@ -30,6 +31,7 @@ export const useDeCombineMode = (gameState, setGameState, setMessage) => {
     selectedSquare: null,
     assignment: null,
     isConfirmOpen: false,
+    isLocalMode: false, // true = double-tap (no modal), false = button (with modal)
   });
 
   const [eligibleHybrids, setEligibleHybrids] = useState([]);
@@ -49,6 +51,7 @@ export const useDeCombineMode = (gameState, setGameState, setMessage) => {
         selectedSquare: null,
         assignment: null,
         isConfirmOpen: false,
+        isLocalMode: false,
       });
       setEligibleHybrids([]);
       if (!preserveMessage) {
@@ -83,7 +86,7 @@ export const useDeCombineMode = (gameState, setGameState, setMessage) => {
   ]);
 
   // Enter de-combine mode
-  const enterDeCombineMode = useCallback(() => {
+  const enterDeCombineMode = useCallback((initialPiece = null) => {
     const hybrids = memoizedEligibleHybrids;
 
     if (hybrids.length === 0) {
@@ -91,18 +94,58 @@ export const useDeCombineMode = (gameState, setGameState, setMessage) => {
       return false;
     }
 
-    setDeCombine({
+    // Default state
+    const newState = {
       mode: true,
       activeHybrid: null,
       eligibleSquares: [],
       selectedSquare: null,
       assignment: null,
       isConfirmOpen: false,
-    });
+      isLocalMode: !!initialPiece, // true if double-tap, false if button
+    };
+    
+    // If entered with a specific piece (long press)
+    if (initialPiece) {
+      const { row, col } = initialPiece;
+      const piece = gameState.board[row][col];
+      
+      const isEligible = hybrids.some(
+        (h) => h.row === row && h.col === col
+      );
+      
+      if (isEligible) {
+        // Automatically select the hybrid
+        const squares = findSpawnSquares(gameState.board, row, col);
+        
+        if (squares.length > 0) {
+          newState.activeHybrid = { row, col, piece };
+          newState.eligibleSquares = squares;
+          
+          const components = getHybridComponents(piece);
+          const compNames = components
+            ? `${PIECE_SYMBOLS[components[0]]} + ${PIECE_SYMBOLS[components[1]]}`
+            : "components";
+            
+          setMessage(
+            `De-Combine Mode: Selected ${PIECE_SYMBOLS[piece]}. Click an adjacent square.`
+          );
+        } else {
+           setMessage(announceError(DE_COMBINE_ERRORS.NO_ADJACENT_SQUARES));
+           // Fallback to mode only
+           setMessage("De-Combine Mode: Click a hybrid to split it into components.");
+        }
+      } else {
+         setMessage("De-Combine Mode: Click a hybrid to split it into components.");
+      }
+    } else {
+      setMessage("De-Combine Mode: Click a hybrid to split it into components.");
+    }
+    
+    setDeCombine(newState);
     setEligibleHybrids(hybrids);
-    setMessage("De-Combine Mode: Click a hybrid to split it into components.");
     return true;
-  }, [memoizedEligibleHybrids, setMessage]);
+  }, [memoizedEligibleHybrids, setMessage, gameState.board]);
 
   // Handle de-combine mode clicks
   const handleDeCombineClick = useCallback(
@@ -185,21 +228,70 @@ export const useDeCombineMode = (gameState, setGameState, setMessage) => {
         return;
       }
 
-      setDeCombine((prev) => ({
-        ...prev,
-        selectedSquare: { row, col },
-        assignment: assignmentResult.chosen,
-        isConfirmOpen: true,
-      }));
+      const chosenAssignment = assignmentResult.chosen;
 
-      const toAlgebraic = (r, c) => String.fromCharCode(97 + c) + (8 - r);
-      setMessage(
-        `Ready to de-combine: ${
-          assignmentResult.chosen.description
-        } at ${toAlgebraic(row, col)}. Press Confirm or ESC to cancel.`
-      );
+      // LOCAL MODE (double-tap): Execute directly without modal
+      if (deCombine.isLocalMode) {
+        const result = executeDeCombination(
+          gameState.board,
+          deCombine.activeHybrid.row,
+          deCombine.activeHybrid.col,
+          { row, col },
+          gameState.currentTurn  // Pass currentTurn, not chosenAssignment
+        );
+
+        if (!result) {
+           setMessage(announceError(DE_COMBINE_ERRORS.INVALID_PLACEMENT));
+           return;
+        }
+
+        const newGameState = {
+          ...gameState,
+          board: result.board,
+          currentTurn: switchTurn(gameState.currentTurn),
+          capturedPieces: { ...gameState.capturedPieces },
+          enPassantTarget: null,
+        };
+
+        // Add to move history
+        const historyEntry = {
+          type: "de-combine",
+          turn: gameState.currentTurn,
+          hybridSquare: { row: deCombine.activeHybrid.row, col: deCombine.activeHybrid.col },
+          selectedSquare: { row, col },
+          stayingComponent: result.stayingComponent,
+          spawningComponent: result.spawningComponent,
+          assignmentType: result.assignmentType,
+          turnIndex: gameState.moveHistory.length,
+          timestamp: Date.now(),
+        };
+
+        newGameState.moveHistory = [...gameState.moveHistory, historyEntry];
+
+        setGameState(newGameState);
+
+        const successMsg = getSuccessMessage(
+          deCombine.activeHybrid.piece,
+          result.stayingComponent,
+          result.anchorSquare,
+          result.spawningComponent,
+          result.spawnSquare
+        );
+        setMessage(announceSuccess(successMsg));
+
+        exitDeCombineMode(true);
+      } 
+      // GLOBAL MODE (button): Show confirmation dialog
+      else {
+        setDeCombine((prev) => ({
+          ...prev,
+          selectedSquare: { row, col },
+          assignment: chosenAssignment,
+          isConfirmOpen: true,
+        }));
+      }
     },
-    [gameState.board, deCombine, eligibleHybrids, setMessage]
+    [gameState, deCombine, eligibleHybrids, setMessage, setGameState, exitDeCombineMode]
   );
 
   // Execute de-combination

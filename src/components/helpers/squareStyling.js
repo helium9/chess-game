@@ -15,10 +15,14 @@ export const getSquareStyling = (isLightSquare, highlightState) => {
     spawnSelected,
     spawnSquare,
     eligibleHybrid,
+    hasActiveHybrid,
+    isLocalDeCombine, // true = double-tap (only show selected hybrid)
     // Combine mode highlights
     anchor,
     partner,
     eligible,
+    hasAnchor,
+    isLocalCombine, // true = double-tap (only show anchor's partners)
     // Normal mode highlights
     selected,
     isLegalMove,
@@ -49,31 +53,45 @@ export const getSquareStyling = (isLightSquare, highlightState) => {
         ? "bg-gradient-to-br from-green-200 to-green-300"
         : "bg-gradient-to-br from-green-500 to-green-700";
       ringClass = "ring-2 ring-green-400 ring-inset shadow-inner";
-    } else if (eligibleHybrid) {
+    } else if (eligibleHybrid && !isLocalDeCombine) {
+      // All eligible hybrids - only show in GLOBAL mode (button), not local (double-tap)
       squareColor = isLightSquare
         ? "bg-gradient-to-br from-teal-200 to-teal-300"
         : "bg-gradient-to-br from-teal-500 to-teal-700";
       ringClass = "ring-2 ring-teal-300 ring-inset animate-pulse";
-    } else {
+    } else if (isLocalDeCombine && !hybridSelected && !spawnSquare) {
+      // In LOCAL mode, dim everything except selected hybrid and spawn squares
       opacity = "opacity-50";
     }
+  }
+  // Check specifically for last move highlight - using a distinct color (e.g., yellow)
+  else if (highlightState.isLastMoveSource || highlightState.isLastMoveTarget) {
+    squareColor = isLightSquare ? "bg-amber-200" : "bg-amber-600";
+    opacity = "opacity-90";
+    ringClass = "ring-2 ring-yellow-400 ring-inset"; // Added a ring for visibility
   }
   // Combine mode highlighting
   else if (combineMode) {
     if (anchor) {
+      // Anchor piece (the one double-tapped or clicked first)
       squareColor = "bg-gradient-to-br from-purple-300 to-purple-500";
       ringClass =
         "ring-4 ring-purple-400 ring-inset shadow-lg shadow-purple-500/50";
     } else if (partner) {
+      // Partner pieces (only shown when anchor is set)
       squareColor = isLightSquare
         ? "bg-gradient-to-br from-purple-200 to-purple-300"
         : "bg-gradient-to-br from-purple-500 to-purple-700";
       ringClass = "ring-2 ring-purple-300 ring-inset shadow-inner";
-    } else if (eligible) {
+    } else if (eligible && !isLocalCombine) {
+      // All eligible pieces - only show in GLOBAL mode (button), not local (double-tap)
       squareColor = isLightSquare
         ? "bg-gradient-to-br from-blue-200 to-blue-300"
         : "bg-gradient-to-br from-blue-500 to-blue-700";
       ringClass = "ring-2 ring-blue-300 ring-inset animate-pulse";
+    } else if (isLocalCombine && !anchor && !partner) {
+      // In LOCAL mode with anchor, dim everything except anchor and partners
+      opacity = "opacity-50";
     }
   }
   // Normal move mode highlighting

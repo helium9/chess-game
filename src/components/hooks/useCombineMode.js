@@ -74,7 +74,7 @@ export const useCombineMode = (gameState, setGameState, setMessage) => {
   ]);
 
   // Enter combine mode
-  const enterCombineMode = useCallback(() => {
+  const enterCombineMode = useCallback((initialPiece = null) => {
     const pairs = memoizedEligiblePairs;
 
     if (pairs.length === 0) {
@@ -84,11 +84,46 @@ export const useCombineMode = (gameState, setGameState, setMessage) => {
 
     setCombineMode(true);
     setEligiblePairs(pairs);
-    setCombineAnchor(null);
-    setEligiblePartners([]);
-    setMessage("Combine Mode: Click a piece to start combination");
+    
+    // If entered with a specific piece (long press)
+    if (initialPiece) {
+      const { row, col } = initialPiece;
+      const piece = gameState.board[row][col];
+      
+      // Check if this piece is eligible
+      const isEligible = pairs.some(
+        (pair) =>
+          (pair.piece1.row === row && pair.piece1.col === col) ||
+          (pair.piece2.row === row && pair.piece2.col === col)
+      );
+
+      if (isEligible) {
+        setCombineAnchor({ row, col });
+        const partners = getEligiblePartners(
+          gameState.board,
+          row,
+          col,
+          gameState.currentTurn,
+          pairs
+        );
+        setEligiblePartners(partners);
+        setMessage(
+          `Combine Mode: Selected ${PIECE_SYMBOLS[piece]}. Click a partner.`
+        );
+      } else {
+        // Fallback if not eligible
+        setCombineAnchor(null);
+        setEligiblePartners([]);
+        setMessage("Combine Mode: Click a piece to start combination");
+      }
+    } else {
+      setCombineAnchor(null);
+      setEligiblePartners([]);
+      setMessage("Combine Mode: Click a piece to start combination");
+    }
+    
     return true;
-  }, [memoizedEligiblePairs, setMessage]);
+  }, [memoizedEligiblePairs, setMessage, gameState.board, gameState.currentTurn]);
 
   // Execute combination
   const executeCombine = useCallback(

@@ -39,6 +39,34 @@ export default function Home() {
     lastUpdate: Date.now(),
   });
 
+  // Track previous game mode to detect transitions to single player (e.g. from disconnect)
+  const prevGameMode = useRef(webRTC.gameMode);
+  
+  useEffect(() => {
+    if (prevGameMode.current !== "singlePlayer" && webRTC.gameMode === "singlePlayer") {
+       console.log("Resetting game state due to return to SinglePlayer");
+       const initialState = createInitialGameState();
+       setGameState(initialState);
+       gameStateRef.current = initialState;
+       
+       // Reset timer
+       const timeValue = TIMER_CONFIG.getTimeValue(TIMER_CONFIG.DEFAULT);
+       timerStateRef.current = {
+        whiteTime: timeValue,
+        blackTime: timeValue,
+        lastUpdate: Date.now(),
+      };
+      
+      // Reset time control? Maybe keep user preference? 
+      // User might want to play another game with same settings.
+      // But for consistency with handleResetToSinglePlayer, let's reset or keep?
+      // handleResetToSinglePlayer resets it.
+      setSelectedTimeControl(TIMER_CONFIG.DEFAULT);
+      setIsAiThinking(false);
+    }
+    prevGameMode.current = webRTC.gameMode;
+  }, [webRTC.gameMode]);
+
   const handleGameStateChange = (newGameState) => {
     console.log("[SYNC DEBUG] handleGameStateChange called:", {
       currentTurn: newGameState.currentTurn,
@@ -556,6 +584,22 @@ export default function Home() {
         onTimeControlChange={setSelectedTimeControl}
         isGameStarted={webRTC.isConnected || webRTC.gameMode === "vsEngine"}
       />
+
+      {webRTC.error && (
+        <div className="fixed top-16 sm:top-20 left-1/2 transform -translate-x-1/2 z-50 bg-red-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg shadow-lg flex items-center space-x-2 sm:space-x-3 max-w-[90vw]">
+          <span className="font-medium text-sm sm:text-base">
+            {webRTC.error}
+          </span>
+          <button 
+            onClick={() => webRTC.setError(null)} 
+            className="ml-2 hover:bg-red-700 rounded-full p-1"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {webRTC.isReconnecting && (
         <div className="fixed top-16 sm:top-20 left-1/2 transform -translate-x-1/2 z-50 bg-yellow-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg shadow-lg flex items-center space-x-2 sm:space-x-3 max-w-[90vw]">
