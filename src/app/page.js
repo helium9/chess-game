@@ -534,9 +534,28 @@ export default function Home() {
 
       setSelectedTimeControl(TIMER_CONFIG.DEFAULT);
       setIsAiThinking(false);
-    } else if (currentMode === "host") {
-      // When becoming host, initialize timer with selected time control
+    } else if (currentMode === "host" && prevMode === "singlePlayer") {
+      // When becoming host FROM singlePlayer, reset game state and timer
+      console.log("Resetting game state when becoming host");
+      const initialState = createInitialGameState();
+      gameStateRef.current = initialState;
+      setGameState(initialState);
+      
       const timeValue = TIMER_CONFIG.getTimeValue(selectedTimeControl);
+      timerStateRef.current = {
+        whiteTime: timeValue,
+        blackTime: timeValue,
+        lastUpdate: Date.now(),
+      };
+    } else if (currentMode === "guest" && prevMode === "singlePlayer") {
+      // When becoming guest FROM singlePlayer, reset game state
+      // The actual game state will be received from host via playerAssignment
+      console.log("Resetting game state when becoming guest");
+      const initialState = createInitialGameState();
+      gameStateRef.current = initialState;
+      setGameState(initialState);
+      
+      const timeValue = TIMER_CONFIG.getTimeValue(TIMER_CONFIG.DEFAULT);
       timerStateRef.current = {
         whiteTime: timeValue,
         blackTime: timeValue,
