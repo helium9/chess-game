@@ -19,6 +19,7 @@ const Navbar = ({
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const [latency, setLatency] = useState(null);
   const [measuringLatency, setMeasuringLatency] = useState(false);
+  const [showCopied, setShowCopied] = useState(false);
 
   const {
     isConnecting,
@@ -222,7 +223,8 @@ const Navbar = ({
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(connectionId);
-    alert("Connection ID copied to clipboard!");
+    setShowCopied(true);
+    setTimeout(() => setShowCopied(false), 3500);
   };
 
   return (
@@ -411,9 +413,13 @@ const Navbar = ({
                     </code>
                     <button
                       onClick={copyToClipboard}
-                      className="bg-slate-600 hover:bg-slate-500 text-white px-2 py-1 rounded text-xs transition-colors duration-200"
+                      className={`px-2 py-1 rounded text-xs transition-all duration-200 ${
+                        showCopied
+                          ? "bg-green-600 text-white"
+                          : "bg-slate-600 hover:bg-slate-500 text-white"
+                      }`}
                     >
-                      Copy
+                      {showCopied ? "✓ Copied" : "Copy"}
                     </button>
                   </div>
                 </div>
