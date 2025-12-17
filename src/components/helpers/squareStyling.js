@@ -118,15 +118,38 @@ export const getSquareStyling = (isLightSquare, highlightState) => {
 /**
  * Get piece styling with text shadow based on color
  * @param {string} piece - The piece symbol
- * @returns {object} - Style object with textShadow and filter
+ * @returns {object} - Style object with textShadow, filter, and transform adjustments
  */
 export const getPieceStyling = (piece) => {
   const isWhitePiece = piece === piece.toUpperCase();
+  const basePiece = piece.toLowerCase();
 
-  return {
+  // Base styling for all pieces
+  const baseStyle = {
     textShadow: isWhitePiece
       ? "3px 3px 6px rgba(0,0,0,0.9), -1px -1px 2px rgba(0,0,0,0.5)"
       : "2px 2px 4px rgba(255,255,255,1), -1px -1px 2px rgba(255,255,255,0.6)",
     filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))",
   };
+
+  // Hybrid pieces need specific positioning adjustments
+  // These Unicode characters (🩏🩐🩎🩒🩓🩑) have different baselines
+  const hybridOffsets = {
+    rn: { translateY: "-0.05em", translateX: "-0.05em" }, // Rook-Knight (left)
+    bn: { translateY: "-0.05em", translateX: "-0.05em" }, // Bishop-Knight (left)
+    qn: { translateY: "0.1em", translateX: "-0.05em" }, // Queen-Knight (down + left)
+    rb: { translateY: "0", translateX: "0" }, // Rook-Bishop (⚔) (no adjustment)
+  };
+
+  // Apply hybrid-specific offset if applicable
+  if (hybridOffsets[basePiece]) {
+    const offset = hybridOffsets[basePiece];
+    return {
+      ...baseStyle,
+      transform: `translate(${offset.translateX}, ${offset.translateY})`,
+      display: "inline-block",
+    };
+  }
+
+  return baseStyle;
 };
