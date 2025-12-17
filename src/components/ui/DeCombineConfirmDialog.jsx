@@ -2,6 +2,7 @@
 
 import React from "react";
 import { PIECE_SYMBOLS } from "../../utils/constants.js";
+import { getPieceStyling } from "../helpers/squareStyling.js";
 
 /**
  * DeCombineConfirmDialog component - confirms de-combination action
@@ -34,7 +35,14 @@ const DeCombineConfirmDialog = ({
       <div className="text-center mb-3 sm:mb-4 space-y-1.5 sm:space-y-2">
         <p className="text-base sm:text-lg">
           Hybrid:{" "}
-          <span className="text-2xl sm:text-3xl">
+          <span
+            className="text-2xl sm:text-3xl"
+            style={{
+              ...getPieceStyling(hybridPiece),
+              fontFamily:
+                "'Noto Sans Symbols 2', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif",
+            }}
+          >
             {PIECE_SYMBOLS[hybridPiece]}
           </span>
         </p>

@@ -2,6 +2,7 @@
 
 import React from "react";
 import { PIECE_SYMBOLS } from "../../utils/constants.js";
+import { getPieceStyling } from "../helpers/squareStyling.js";
 
 /**
  * PromotionDialog component - displays promotion piece selection
@@ -31,6 +32,11 @@ const PromotionDialog = ({ isOpen, currentTurn, onPromote }) => {
           autoFocus
           className="px-4 py-3 sm:px-5 sm:py-3.5 md:px-6 md:py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white font-bold rounded-lg sm:rounded-xl shadow-xl transition-all transform hover:scale-110 active:scale-95 focus:ring-2 sm:focus:ring-4 focus:ring-yellow-400 text-2xl sm:text-3xl md:text-4xl"
           aria-label="Promote to Queen"
+          style={{
+            ...getPieceStyling(currentTurn === "white" ? "Q" : "q"),
+            fontFamily:
+              "'Noto Sans Symbols 2', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif",
+          }}
         >
           {currentTurn === "white" ? "♕" : "♛"}
         </button>
@@ -38,6 +44,11 @@ const PromotionDialog = ({ isOpen, currentTurn, onPromote }) => {
           onClick={() => onPromote(currentTurn === "white" ? "R" : "r")}
           className="px-4 py-3 sm:px-5 sm:py-3.5 md:px-6 md:py-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold rounded-lg sm:rounded-xl shadow-xl transition-all transform hover:scale-110 active:scale-95 focus:ring-2 sm:focus:ring-4 focus:ring-blue-400 text-2xl sm:text-3xl md:text-4xl"
           aria-label="Promote to Rook"
+          style={{
+            ...getPieceStyling(currentTurn === "white" ? "R" : "r"),
+            fontFamily:
+              "'Noto Sans Symbols 2', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif",
+          }}
         >
           {currentTurn === "white" ? "♖" : "♜"}
         </button>
@@ -45,6 +56,11 @@ const PromotionDialog = ({ isOpen, currentTurn, onPromote }) => {
           onClick={() => onPromote(currentTurn === "white" ? "B" : "b")}
           className="px-4 py-3 sm:px-5 sm:py-3.5 md:px-6 md:py-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold rounded-lg sm:rounded-xl shadow-xl transition-all transform hover:scale-110 active:scale-95 focus:ring-2 sm:focus:ring-4 focus:ring-green-400 text-2xl sm:text-3xl md:text-4xl"
           aria-label="Promote to Bishop"
+          style={{
+            ...getPieceStyling(currentTurn === "white" ? "B" : "b"),
+            fontFamily:
+              "'Noto Sans Symbols 2', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif",
+          }}
         >
           {currentTurn === "white" ? "♗" : "♝"}
         </button>
@@ -52,6 +68,11 @@ const PromotionDialog = ({ isOpen, currentTurn, onPromote }) => {
           onClick={() => onPromote(currentTurn === "white" ? "N" : "n")}
           className="px-4 py-3 sm:px-5 sm:py-3.5 md:px-6 md:py-4 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold rounded-lg sm:rounded-xl shadow-xl transition-all transform hover:scale-110 active:scale-95 focus:ring-2 sm:focus:ring-4 focus:ring-red-400 text-2xl sm:text-3xl md:text-4xl"
           aria-label="Promote to Knight"
+          style={{
+            ...getPieceStyling(currentTurn === "white" ? "N" : "n"),
+            fontFamily:
+              "'Noto Sans Symbols 2', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif",
+          }}
         >
           {currentTurn === "white" ? "♘" : "♞"}
         </button>
