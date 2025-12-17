@@ -130,15 +130,17 @@ export const getPieceStyling = (piece) => {
       ? "3px 3px 6px rgba(0,0,0,0.9), -1px -1px 2px rgba(0,0,0,0.5)"
       : "2px 2px 4px rgba(255,255,255,1), -1px -1px 2px rgba(255,255,255,0.6)",
     filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))",
+    transform: "translateY(0.1em)", // Move all pieces down
+    display: "inline-block",
   };
 
   // Hybrid pieces need specific positioning adjustments
   // These Unicode characters (🩏🩐🩎🩒🩓🩑) have different baselines
   const hybridOffsets = {
-    rn: { translateY: "-0.05em", translateX: "-0.05em" }, // Rook-Knight (left)
-    bn: { translateY: "-0.05em", translateX: "-0.05em" }, // Bishop-Knight (left)
-    qn: { translateY: "0.1em", translateX: "-0.05em" }, // Queen-Knight (down + left)
-    rb: { translateY: "0", translateX: "0" }, // Rook-Bishop (⚔) (no adjustment)
+    rn: { translateY: "0.05em", translateX: "-0.05em" }, // Rook-Knight (down + left)
+    bn: { translateY: "0.05em", translateX: "-0.05em" }, // Bishop-Knight (down + left)
+    qn: { translateY: "0.2em", translateX: "-0.05em" }, // Queen-Knight (more down + left)
+    rb: { translateY: "0.1em", translateX: "0" }, // Rook-Bishop (down)
   };
 
   // Apply hybrid-specific offset if applicable
@@ -147,7 +149,6 @@ export const getPieceStyling = (piece) => {
     return {
       ...baseStyle,
       transform: `translate(${offset.translateX}, ${offset.translateY})`,
-      display: "inline-block",
     };
   }
 

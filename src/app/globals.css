@@ -1,3 +1,6 @@
+/* Import Google Fonts Noto Sans Symbols 2 for chess symbols support */
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Symbols+2&display=swap");
+
 @import "tailwindcss";
 
 :root {

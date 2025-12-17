@@ -44,7 +44,11 @@ const ChessSquare = ({
         >
           <span
             className={`text-2xl sm:text-4xl md:text-4xl lg:text-5xl select-none ${pieceColorClass}`}
-            style={pieceStyling}
+            style={{
+              ...pieceStyling,
+              fontFamily:
+                "'Noto Sans Symbols 2', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif",
+            }}
           >
             {PIECE_SYMBOLS[piece]}
           </span>
