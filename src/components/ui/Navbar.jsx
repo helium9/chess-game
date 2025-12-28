@@ -104,7 +104,20 @@ const Navbar = ({
     cancelCall,
   } = webRTC;
 
-  // Reset UI when connection state changes
+  // Track previous connection state to handle automatic input clearing
+  const wasConnectedRef = useRef(false);
+
+  useEffect(() => {
+    if (isConnected) {
+      wasConnectedRef.current = true;
+    } else if (wasConnectedRef.current) {
+      // We were connected, now we are not (disconnected/left)
+      setReceiverIdInput("");
+      wasConnectedRef.current = false;
+    }
+  }, [isConnected]);
+
+  // Fallback for failed attempts
   useEffect(() => {
     if (
       connectionState === "disconnected" ||

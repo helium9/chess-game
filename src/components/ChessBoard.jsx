@@ -459,7 +459,23 @@ const ChessBoard = ({
       <div className="lg:hidden flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Board - at top */}
         <div className="flex-shrink-0 flex justify-center p-2">
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center w-full">
+            {showTimers && timerStateRef && (
+              <div className="w-full max-w-[90vw] mb-1">
+                <Timer
+                  timerStateRef={timerStateRef}
+                  color={isBoardFlipped ? COLORS.WHITE : COLORS.BLACK}
+                  currentTurn={gameState.currentTurn}
+                  gameMode={gameMode}
+                  isConnected={isConnected}
+                  isReconnecting={isReconnecting}
+                  onTimeout={handleTimeout}
+                  isGameOver={gameState.gameStatus?.isGameOver || false}
+                  playerName={isBoardFlipped ? "White" : "Black"}
+                  compact={true}
+                />
+              </div>
+            )}
             <BoardGrid
               gameState={gameState}
               isBoardFlipped={isBoardFlipped}
@@ -477,6 +493,22 @@ const ChessBoard = ({
               deCombine={deCombine}
               handleSquareClick={handleSquareClick}
             />
+            {showTimers && timerStateRef && (
+              <div className="w-full max-w-[90vw] mt-1">
+                <Timer
+                  timerStateRef={timerStateRef}
+                  color={isBoardFlipped ? COLORS.BLACK : COLORS.WHITE}
+                  currentTurn={gameState.currentTurn}
+                  gameMode={gameMode}
+                  isConnected={isConnected}
+                  isReconnecting={isReconnecting}
+                  onTimeout={handleTimeout}
+                  isGameOver={gameState.gameStatus?.isGameOver || false}
+                  playerName={isBoardFlipped ? "Black" : "White"}
+                  compact={true}
+                />
+              </div>
+            )}
           </div>
         </div>
 
