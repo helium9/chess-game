@@ -440,6 +440,11 @@ class WebRTCSignalingService {
   // Create a new call (initiator)
   async createCall() {
     try {
+      // Guard against null db (Firebase not initialized)
+      if (!db) {
+        throw new Error("Firebase not initialized. Please refresh and try again.");
+      }
+
       this.lastRole = "initiator";
 
       const callsCollection = collection(db, "calls");
@@ -515,6 +520,11 @@ class WebRTCSignalingService {
   // Join an existing call (receiver)
   async joinCall(callId) {
     try {
+      // Guard against null db (Firebase not initialized)
+      if (!db) {
+        throw new Error("Firebase not initialized. Please refresh and try again.");
+      }
+
       this.lastRole = "receiver";
       this.lastCallId = callId;
 

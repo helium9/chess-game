@@ -85,10 +85,9 @@ export const getSquareStyling = (isLightSquare, highlightState) => {
       ringClass = "ring-2 ring-purple-300 ring-inset shadow-inner";
     } else if (eligible && !isLocalCombine) {
       // All eligible pieces - only show in GLOBAL mode (button), not local (double-tap)
-      squareColor = isLightSquare
-        ? "bg-gradient-to-br from-blue-200 to-blue-300"
-        : "bg-gradient-to-br from-blue-500 to-blue-700";
-      ringClass = "ring-2 ring-blue-300 ring-inset animate-pulse";
+      // Use SAME color regardless of light/dark square for consistency
+      squareColor = "bg-gradient-to-br from-purple-300 to-purple-500";
+      ringClass = "ring-2 ring-purple-400 ring-inset animate-pulse";
     } else if (isLocalCombine && !anchor && !partner) {
       // In LOCAL mode with anchor, dim everything except anchor and partners
       opacity = "opacity-50";

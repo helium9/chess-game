@@ -447,7 +447,7 @@ const ChessBoard = ({
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-48px)] bg-[var(--bg-primary)] overflow-hidden">
+    <div className="flex flex-col min-h-[calc(100vh-48px)] bg-[var(--bg-primary)] overflow-x-hidden">
       {/* Status Strip */}
       <div className="w-full px-3 py-1.5 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] text-center flex-shrink-0">
         <span className="text-sm font-medium text-[var(--text-primary)]">
@@ -456,7 +456,7 @@ const ChessBoard = ({
       </div>
 
       {/* ====== MOBILE LAYOUT ====== */}
-      <div className="lg:hidden flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="lg:hidden flex flex-col">
         {/* Board - at top */}
         <div className="flex-shrink-0 flex justify-center p-2">
           <div className="flex flex-col items-center w-full">

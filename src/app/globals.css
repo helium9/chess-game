@@ -293,7 +293,7 @@ body {
   }
 }
 
-/* Mobile/Tablet: Board fits within viewport, no scrolling needed */
+/* Mobile/Tablet: Board sized by width, page scrolls if needed */
 @media (max-width: 1023px) {
   .board-container {
     width: 100%;
@@ -303,21 +303,40 @@ body {
     justify-content: center;
   }
 
-  /* Board size = min(available width, available height for board) */
-  /* Height calculation: 100vh - 340px (increased to guarantee space for move history) */
+  /* Simple width-based sizing. If content is taller than viewport, page scrolls */
   .chess-square {
-    width: min(calc((100vw - 56px) / 8), calc((100vh - 340px) / 8));
+    width: calc((100vw - 56px) / 8);
   }
 
   .chess-square-label {
-    width: min(calc((100vw - 56px) / 8), calc((100vh - 340px) / 8));
+    width: calc((100vw - 56px) / 8);
   }
 
   .chess-rank-label {
-    height: min(calc((100vw - 56px) / 8), calc((100vh - 340px) / 8));
+    height: calc((100vw - 56px) / 8);
   }
 
   .chess-piece-icon {
-    font-size: min(calc((100vw - 56px) / 12), calc((100vh - 340px) / 12));
+    font-size: calc((100vw - 56px) / 12);
+  }
+}
+
+/* Mobile Landscape: Board sized to fit height, scrolls for rest */
+@media (max-width: 1023px) and (orientation: landscape) {
+  .chess-square {
+    /* Size based on height minus ~80px for navbar/status. Board fits, scroll for rest */
+    width: calc((100vh - 80px) / 8);
+  }
+
+  .chess-square-label {
+    width: calc((100vh - 80px) / 8);
+  }
+
+  .chess-rank-label {
+    height: calc((100vh - 80px) / 8);
+  }
+
+  .chess-piece-icon {
+    font-size: calc((100vh - 80px) / 12);
   }
 }
