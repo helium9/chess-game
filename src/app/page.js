@@ -16,15 +16,12 @@ export default function Home() {
   const [gameState, setGameState] = useState(() => createInitialGameState());
   const lastSyncRequestTime = useRef(0);
 
-  // Ref to track the latest game state (for use in sync requests where React state might be stale)
   const gameStateRef = useRef(gameState);
 
-  // Keep gameStateRef in sync with gameState
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
 
-  // Flag to prevent echoing back received game states
   const isReceivingRemoteState = useRef(false);
 
   const [isAiThinking, setIsAiThinking] = useState(false);
@@ -39,7 +36,6 @@ export default function Home() {
     lastUpdate: Date.now(),
   });
 
-  // Track previous game mode to detect transitions to single player (e.g. from disconnect)
   const prevGameMode = useRef(webRTC.gameMode);
   
   useEffect(() => {
@@ -49,7 +45,6 @@ export default function Home() {
        setGameState(initialState);
        gameStateRef.current = initialState;
        
-       // Reset timer
        const timeValue = TIMER_CONFIG.getTimeValue(TIMER_CONFIG.DEFAULT);
        timerStateRef.current = {
         whiteTime: timeValue,
@@ -57,10 +52,6 @@ export default function Home() {
         lastUpdate: Date.now(),
       };
       
-      // Reset time control? Maybe keep user preference? 
-      // User might want to play another game with same settings.
-      // But for consistency with handleResetToSinglePlayer, let's reset or keep?
-      // handleResetToSinglePlayer resets it.
       setSelectedTimeControl(TIMER_CONFIG.DEFAULT);
       setIsAiThinking(false);
     }
@@ -99,7 +90,6 @@ export default function Home() {
       timerStateRef.current.lastUpdate = now;
     }
 
-    // Update ref IMMEDIATELY before setting state, so sync requests get latest state
     gameStateRef.current = newGameState;
     setGameState(newGameState);
 
@@ -112,7 +102,6 @@ export default function Home() {
       makeAiMove(newGameState);
     }
 
-    // Only send game state to peer if this is a LOCAL change, not a received remote state
     if (webRTC.isConnected && !isReceivingRemoteState.current) {
       console.log("[SYNC DEBUG] Sending game state to peer:", {
         type: "gameStateSync",
@@ -339,10 +328,8 @@ export default function Home() {
             ),
           });
 
-          // Set flag to prevent echoing this state back
           isReceivingRemoteState.current = true;
 
-          // Update ref immediately for sync requests
           gameStateRef.current = innerMessage.gameState;
           setGameState((prevState) => {
             console.log(
@@ -354,8 +341,6 @@ export default function Home() {
             return innerMessage.gameState;
           });
 
-          // Clear the flag after a short delay to allow effects to run
-          // This ensures any status updates from checkGameStatus won't be broadcast
           setTimeout(() => {
             isReceivingRemoteState.current = false;
             console.log("[SYNC DEBUG] Remote state flag cleared");
@@ -369,13 +354,10 @@ export default function Home() {
             );
           }
         } else if (innerMessage.type === "playerAssignment") {
-          // WRAPPED MESSAGE HANDLER: Receives messages from WebRTC service
-          // that are wrapped in { type: "gameState", data: {...} } format
           isReceivingRemoteState.current = true;
           gameStateRef.current = innerMessage.initialGameState;
           setGameState(innerMessage.initialGameState);
 
-          // Initialize timer from host's selected time control
           if (innerMessage.timeControl) {
             const timeValue = TIMER_CONFIG.getTimeValue(
               innerMessage.timeControl
@@ -403,7 +385,6 @@ export default function Home() {
         const now = Date.now();
         const timeSinceLastRequest = now - lastSyncRequestTime.current;
 
-        // Use gameStateRef to get the LATEST state, not stale React state
         console.log(
           "[SYNC DEBUG] Responding to requestGameStateSync with ref state:",
           {
@@ -429,7 +410,6 @@ export default function Home() {
             webRTC.setGracefulDisconnectFlag(true);
         }
       } else if (message.type === "gameStateSync") {
-        // Direct gameStateSync message (without wrapper)
         isReceivingRemoteState.current = true;
         gameStateRef.current = message.gameState;
         setGameState((prevState) => {
@@ -439,13 +419,10 @@ export default function Home() {
           isReceivingRemoteState.current = false;
         }, 100);
       } else if (message.type === "playerAssignment") {
-        // DIRECT MESSAGE HANDLER: Fallback for unwrapped messages
-        // sent directly through data channel (backwards compatibility)
         isReceivingRemoteState.current = true;
         gameStateRef.current = message.initialGameState;
         setGameState(message.initialGameState);
 
-        // Initialize timer from host's selected time control
         if (message.timeControl) {
           const timeValue = TIMER_CONFIG.getTimeValue(message.timeControl);
           timerStateRef.current = {
@@ -496,26 +473,23 @@ export default function Home() {
         console.log(
           "[SYNC DEBUG] onDataChannelOpen callback FIRED - sending playerAssignment"
         );
-        // Use gameStateRef to get the latest state, avoiding stale closure issues
         webRTC.sendGameState({
           type: "playerAssignment",
           hostColor: COLORS.WHITE,
           guestColor: COLORS.BLACK,
           initialGameState: gameStateRef.current,
-          timeControl: selectedTimeControl, // Send time control name to guest
+          timeControl: selectedTimeControl,
         });
       });
     }
   }, [webRTC.setOnDataChannelOpen, webRTC.gameMode, webRTC]);
 
-  // Separate effect for resetting when switching TO singlePlayer mode (not when already in it)
   const previousGameMode = useRef(webRTC.gameMode);
 
   useEffect(() => {
     const currentMode = webRTC.gameMode;
     const prevMode = previousGameMode.current;
 
-    // Only reset when SWITCHING TO singlePlayer from another mode
     if (
       currentMode === "singlePlayer" &&
       prevMode !== "singlePlayer" &&
@@ -535,7 +509,6 @@ export default function Home() {
       setSelectedTimeControl(TIMER_CONFIG.DEFAULT);
       setIsAiThinking(false);
     } else if (currentMode === "host" && prevMode === "singlePlayer") {
-      // When becoming host FROM singlePlayer, reset game state and timer
       console.log("Resetting game state when becoming host");
       const initialState = createInitialGameState();
       gameStateRef.current = initialState;
@@ -548,8 +521,6 @@ export default function Home() {
         lastUpdate: Date.now(),
       };
     } else if (currentMode === "guest" && prevMode === "singlePlayer") {
-      // When becoming guest FROM singlePlayer, reset game state
-      // The actual game state will be received from host via playerAssignment
       console.log("Resetting game state when becoming guest");
       const initialState = createInitialGameState();
       gameStateRef.current = initialState;
@@ -563,7 +534,6 @@ export default function Home() {
       };
     }
 
-    // Update previous mode for next comparison
     previousGameMode.current = currentMode;
   }, [webRTC.gameMode, selectedTimeControl]);
 
@@ -591,7 +561,7 @@ export default function Home() {
   }, [webRTC.isConnected, webRTC.isReconnecting]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen flex flex-col bg-[var(--bg-primary)] overflow-x-hidden">
       <Analytics />
       <Navbar
         webRTC={webRTC}
@@ -605,13 +575,11 @@ export default function Home() {
       />
 
       {webRTC.error && (
-        <div className="fixed top-16 sm:top-20 left-1/2 transform -translate-x-1/2 z-50 bg-red-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg shadow-lg flex items-center space-x-2 sm:space-x-3 max-w-[90vw]">
-          <span className="font-medium text-sm sm:text-base">
-            {webRTC.error}
-          </span>
+        <div className="fixed top-14 left-1/2 transform -translate-x-1/2 z-50 bg-[var(--accent-danger)] text-white px-4 py-2 rounded-md shadow-lg flex items-center gap-3 max-w-[90vw]">
+          <span className="text-sm">{webRTC.error}</span>
           <button 
             onClick={() => webRTC.setError(null)} 
-            className="ml-2 hover:bg-red-700 rounded-full p-1"
+            className="hover:bg-red-700 rounded p-0.5"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -621,11 +589,9 @@ export default function Home() {
       )}
 
       {webRTC.isReconnecting && (
-        <div className="fixed top-16 sm:top-20 left-1/2 transform -translate-x-1/2 z-50 bg-yellow-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg shadow-lg flex items-center space-x-2 sm:space-x-3 max-w-[90vw]">
-          <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-b-2 border-white"></div>
-          <span className="font-medium text-sm sm:text-base">
-            Reconnecting...
-          </span>
+        <div className="fixed top-14 left-1/2 transform -translate-x-1/2 z-50 bg-yellow-600 text-white px-4 py-2 rounded-md shadow-lg flex items-center gap-2 max-w-[90vw]">
+          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm">Reconnecting...</span>
         </div>
       )}
 

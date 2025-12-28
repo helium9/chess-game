@@ -1,63 +1,323 @@
-/* Import Google Fonts Noto Sans Symbols 2 for chess symbols support */
-@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Symbols+2&display=swap");
+/* Import Google Fonts for chess.com-like typography */
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+Symbols+2&family=Inter:wght@400;500;600;700&display=swap");
 
 @import "tailwindcss";
 
+/* ============================================
+   Chess.com Inspired Dark Theme Design System
+   ============================================ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Background colors */
+  --bg-primary: #312e2b;
+  --bg-secondary: #272522;
+  --bg-tertiary: #21201d;
+  --bg-elevated: #3d3a36;
+
+  /* Text colors */
+  --text-primary: #f0f0f0;
+  --text-secondary: #bababa;
+  --text-muted: #888888;
+
+  /* Accent colors */
+  --accent-primary: #81b64c;
+  --accent-primary-hover: #95c95e;
+  --accent-secondary: #e6912c;
+  --accent-danger: #c9453e;
+  --accent-info: #5a9bd5;
+
+  /* Board colors */
+  --board-light: #eeeed2;
+  --board-dark: #769656;
+
+  /* UI colors */
+  --border-color: #3d3a36;
+  --border-light: #4a4642;
+  --shadow-color: rgba(0, 0, 0, 0.3);
+
+  /* Spacing scale */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+  --space-2xl: 32px;
+
+  /* Border radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-normal: 200ms ease;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* Global styles */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom animations and utilities */
+/* Scrollbar styling for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-light);
+  border-radius: var(--radius-sm);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* ============================================
+   Component Utility Classes
+   ============================================ */
+
 @layer utilities {
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-      transform: translateY(-10px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+
+  /* Surface styles */
+  .surface-primary {
+    background-color: var(--bg-primary);
   }
 
-  @keyframes pulse-subtle {
-    0%,
-    100% {
-      opacity: 1;
-      transform: scale(1);
-    }
-    50% {
-      opacity: 0.9;
-      transform: scale(1.02);
-    }
+  .surface-secondary {
+    background-color: var(--bg-secondary);
   }
 
-  .animate-fade-in {
-    animation: fade-in 0.8s ease-out;
+  .surface-elevated {
+    background-color: var(--bg-elevated);
   }
 
-  .animate-pulse-subtle {
-    animation: pulse-subtle 2s ease-in-out infinite;
+  /* Text styles */
+  .text-primary {
+    color: var(--text-primary);
+  }
+
+  .text-secondary {
+    color: var(--text-secondary);
+  }
+
+  .text-muted {
+    color: var(--text-muted);
+  }
+
+  /* Button base styles */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: var(--radius-md);
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    white-space: nowrap;
+  }
+
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .btn-primary {
+    background-color: var(--accent-primary);
+    color: white;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--accent-primary-hover);
+  }
+
+  .btn-secondary {
+    background-color: var(--bg-elevated);
+    color: var(--text-primary);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background-color: var(--border-light);
+  }
+
+  .btn-danger {
+    background-color: var(--accent-danger);
+    color: white;
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    background-color: #d55750;
+  }
+
+  .btn-ghost {
+    background-color: transparent;
+    color: var(--text-secondary);
+  }
+
+  .btn-ghost:hover:not(:disabled) {
+    background-color: var(--bg-elevated);
+    color: var(--text-primary);
+  }
+
+  /* Icon button */
+  .btn-icon {
+    padding: var(--space-sm);
+    min-width: 32px;
+    min-height: 32px;
+  }
+
+  /* Card/Panel styles */
+  .panel {
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-color);
+  }
+
+  /* Dropdown styles */
+  .dropdown-trigger {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    background-color: var(--bg-elevated);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .dropdown-trigger:hover {
+    background-color: var(--border-light);
+  }
+
+  /* Divider */
+  .divider-vertical {
+    width: 1px;
+    height: 24px;
+    background-color: var(--border-color);
+    margin: 0 var(--space-sm);
+  }
+
+  .divider-horizontal {
+    height: 1px;
+    background-color: var(--border-color);
+    margin: var(--space-md) 0;
+  }
+}
+
+/* Chess piece font family */
+.chess-piece {
+  font-family: 'Noto Sans Symbols 2', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+}
+
+/* ============================================
+   Chess Board Sizing - Square board fills height
+   ============================================ */
+
+/* Board container - on desktop, takes up square area on left */
+.board-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  min-height: 0;
+}
+
+/* Chess squares - use aspect-ratio to ensure they are square */
+.chess-square {
+  aspect-ratio: 1 / 1;
+  /* Base size for desktop - will be overridden by container constraints */
+  width: clamp(40px, calc((100vh - 130px) / 8), 90px);
+}
+
+.chess-square-label {
+  width: clamp(40px, calc((100vh - 130px) / 8), 90px);
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chess-rank-label {
+  height: clamp(40px, calc((100vh - 130px) / 8), 90px);
+  width: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chess-piece-icon {
+  font-size: clamp(28px, calc((100vh - 130px) / 12), 65px);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Desktop with sidebar - board fills left side */
+@media (min-width: 1024px) {
+  .board-container {
+    /* Limit width to create square area */
+    max-width: calc(100vh - 80px);
+  }
+
+  .chess-square {
+    width: clamp(50px, calc((100vh - 130px) / 8), 95px);
+  }
+
+  .chess-square-label {
+    width: clamp(50px, calc((100vh - 130px) / 8), 95px);
+  }
+
+  .chess-rank-label {
+    height: clamp(50px, calc((100vh - 130px) / 8), 95px);
+  }
+
+  .chess-piece-icon {
+    font-size: clamp(35px, calc((100vh - 130px) / 12), 70px);
+  }
+}
+
+/* Mobile/Tablet: Board fits within viewport, no scrolling needed */
+@media (max-width: 1023px) {
+  .board-container {
+    width: 100%;
+    max-width: 100%;
+    padding: 4px;
+    align-items: flex-start;
+    justify-content: center;
+  }
+
+  /* Board size = min(available width, available height for board) */
+  /* Height calculation: 100vh - 340px (increased to guarantee space for move history) */
+  .chess-square {
+    width: min(calc((100vw - 56px) / 8), calc((100vh - 340px) / 8));
+  }
+
+  .chess-square-label {
+    width: min(calc((100vw - 56px) / 8), calc((100vh - 340px) / 8));
+  }
+
+  .chess-rank-label {
+    height: min(calc((100vw - 56px) / 8), calc((100vh - 340px) / 8));
+  }
+
+  .chess-piece-icon {
+    font-size: min(calc((100vw - 56px) / 12), calc((100vh - 340px) / 12));
   }
 }

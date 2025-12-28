@@ -3,16 +3,14 @@
 import React from "react";
 
 /**
- * DeCombineModeIndicator component - shows when de-combine mode is active
+ * DeCombineModeIndicator component - minimal indicator for de-combine mode
  */
 const DeCombineModeIndicator = () => {
   return (
-    <div className="mb-3 sm:mb-4 px-3 py-2 sm:px-4 sm:py-2.5 md:px-6 md:py-3 bg-gradient-to-r from-teal-600 to-cyan-600 text-white rounded-lg sm:rounded-xl font-semibold shadow-2xl border-2 border-teal-400 animate-pulse-subtle text-xs sm:text-sm md:text-base max-w-full mx-2">
-      <span className="text-lg sm:text-xl md:text-2xl mr-2">⚡</span>
-      <span className="hidden sm:inline">
-        DE-COMBINE MODE ACTIVE - Press ESC to cancel
-      </span>
-      <span className="sm:hidden">DE-COMBINE MODE - ESC to cancel</span>
+    <div className="mt-1 px-3 py-1 bg-teal-600/20 border border-teal-500/50 rounded text-xs text-teal-300 flex items-center gap-2">
+      <span>⚡</span>
+      <span>Split Mode</span>
+      <span className="text-teal-400/70">• ESC to cancel</span>
     </div>
   );
 };

@@ -4,6 +4,9 @@ import React, { useState, useEffect } from "react";
 import { COLORS } from "../../utils/constants";
 import { TIMER_CONFIG } from "../../config/timerConfig";
 
+/**
+ * Timer component - chess.com-inspired minimal styling
+ */
 const Timer = React.memo(
   ({
     timerStateRef,
@@ -12,23 +15,21 @@ const Timer = React.memo(
     gameMode,
     isConnected,
     isReconnecting,
-    onTimeout, // New callback for when timer runs out
-    isGameOver = false, // New prop to stop timer when game ends
+    onTimeout,
+    isGameOver = false,
+    playerName = null,
   }) => {
     const [displayTime, setDisplayTime] = useState(
       TIMER_CONFIG.getTimeValue(TIMER_CONFIG.DEFAULT)
-    ); // Initial time from config
+    );
 
     useEffect(() => {
-      // Don't run timer logic if in single player mode, not connected (for multiplayer), reconnecting, or game is over
-      // Timer is visible in vsEngine mode and multiplayer modes
       if (
         gameMode === "singlePlayer" ||
         (gameMode !== "vsEngine" && !isConnected) ||
         isReconnecting ||
         isGameOver
       ) {
-        // Freeze timer - read current value from ref
         const timeToDisplay =
           color === COLORS.WHITE
             ? timerStateRef.current.whiteTime
@@ -40,7 +41,6 @@ const Timer = React.memo(
       const isMyTurn = currentTurn === color;
 
       if (!isMyTurn) {
-        // Frozen - just read from ref once
         const timeToDisplay =
           color === COLORS.WHITE
             ? timerStateRef.current.whiteTime
@@ -49,7 +49,6 @@ const Timer = React.memo(
         return;
       }
 
-      // My turn - countdown
       const interval = setInterval(() => {
         const now = Date.now();
         const elapsed = now - timerStateRef.current.lastUpdate;
@@ -61,12 +60,10 @@ const Timer = React.memo(
 
         setDisplayTime(Math.max(0, newTime));
 
-        // If time runs out, trigger timeout callback
         if (newTime <= 0 && onTimeout) {
-          console.log(`${color} ran out of time!`);
           onTimeout(color);
         }
-      }, 100); // Update every 100ms for smooth countdown
+      }, 100);
 
       return () => clearInterval(interval);
     }, [
@@ -80,42 +77,52 @@ const Timer = React.memo(
       onTimeout,
     ]);
 
-    // Format time as MM:SS.d
     const formatTime = (ms) => {
       const totalSeconds = Math.max(0, Math.floor(ms / 1000));
       const minutes = Math.floor(totalSeconds / 60);
       const seconds = totalSeconds % 60;
-      const deciseconds = Math.floor((ms % 1000) / 100);
-      return `${minutes}:${seconds.toString().padStart(2, "0")}.${deciseconds}`;
+      
+      // Only show deciseconds when under 20 seconds
+      if (totalSeconds < 20) {
+        const deciseconds = Math.floor((ms % 1000) / 100);
+        return `${minutes}:${seconds.toString().padStart(2, "0")}.${deciseconds}`;
+      }
+      return `${minutes}:${seconds.toString().padStart(2, "0")}`;
     };
 
     const isActive =
       currentTurn === color &&
       (gameMode === "vsEngine" || (gameMode !== "singlePlayer" && isConnected));
-    const isLowTime = displayTime < 30000; // Less than 30 seconds
-    const isCriticalTime = displayTime < 10000; // Less than 10 seconds
+    const isLowTime = displayTime < 30000;
+    const isCriticalTime = displayTime < 10000;
 
     return (
       <div
         className={`
-      px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg font-mono text-base sm:text-lg md:text-xl lg:text-2xl font-bold transition-all duration-300
-      ${
-        isActive
-          ? "bg-green-600 text-white shadow-lg shadow-green-500/50 scale-105"
-          : "bg-gray-700 text-gray-300"
-      }
-      ${isLowTime && isActive ? "bg-yellow-600" : ""}
-      ${isCriticalTime && isActive ? "bg-red-600 animate-pulse" : ""}
-    `}
+          flex items-center justify-between px-3 py-2 rounded-md min-w-[180px]
+          transition-all duration-200
+          ${isActive 
+            ? isCriticalTime
+              ? "bg-red-600 text-white"
+              : isLowTime 
+                ? "bg-yellow-600 text-white" 
+                : "bg-[var(--accent-primary)] text-white"
+            : "bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-secondary)]"
+          }
+        `}
       >
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          <div
-            className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full ${
-              isActive ? "bg-white animate-pulse" : "bg-gray-500"
-            }`}
-          />
-          <span>{formatTime(displayTime)}</span>
+        {/* Player indicator */}
+        <div className="flex items-center gap-2">
+          <div className={`w-3 h-3 rounded-sm ${color === COLORS.WHITE ? "bg-white border border-gray-400" : "bg-gray-800"}`} />
+          <span className="text-sm font-medium">
+            {playerName || (color === COLORS.WHITE ? "White" : "Black")}
+          </span>
         </div>
+
+        {/* Time display */}
+        <span className={`font-mono font-bold ${isCriticalTime && isActive ? "animate-pulse" : ""}`}>
+          {formatTime(displayTime)}
+        </span>
       </div>
     );
   }

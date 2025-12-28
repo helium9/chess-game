@@ -5,7 +5,7 @@ import { PIECE_SYMBOLS } from "../../utils/constants.js";
 import { getPieceStyling } from "../helpers/squareStyling.js";
 
 /**
- * DeCombineConfirmDialog component - confirms de-combination action
+ * DeCombineConfirmDialog component - chess.com-inspired minimal modal
  */
 const DeCombineConfirmDialog = ({
   isOpen,
@@ -20,55 +20,57 @@ const DeCombineConfirmDialog = ({
   const toAlgebraic = (row, col) => String.fromCharCode(97 + col) + (8 - row);
 
   return (
-    <div
-      className="mt-4 sm:mt-6 px-4 py-4 sm:px-6 sm:py-5 md:px-8 md:py-6 bg-gradient-to-br from-teal-700 via-teal-800 to-cyan-900 text-white rounded-xl sm:rounded-2xl shadow-2xl border-2 border-teal-400 max-w-xs sm:max-w-md md:max-w-lg mx-auto backdrop-blur-sm animate-fade-in"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="decombine-dialog-title"
-    >
-      <h3
-        id="decombine-dialog-title"
-        className="text-center mb-3 sm:mb-4 text-lg sm:text-xl font-bold"
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div
+        className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-5 shadow-xl max-w-sm w-full"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="decombine-dialog-title"
       >
-        Confirm De-Combination
-      </h3>
-      <div className="text-center mb-3 sm:mb-4 space-y-1.5 sm:space-y-2">
-        <p className="text-base sm:text-lg">
-          Hybrid:{" "}
-          <span
-            className="text-2xl sm:text-3xl"
-            style={{
-              ...getPieceStyling(hybridPiece),
-              fontFamily:
-                "'Noto Sans Symbols 2', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif",
-            }}
+        <h3
+          id="decombine-dialog-title"
+          className="text-center mb-3 text-base font-semibold text-[var(--text-primary)]"
+        >
+          Confirm Split
+        </h3>
+        
+        <div className="text-center mb-4 space-y-2">
+          <div className="flex items-center justify-center gap-2">
+            <span className="text-sm text-[var(--text-secondary)]">Splitting:</span>
+            <span
+              className="text-2xl chess-piece"
+              style={getPieceStyling(hybridPiece)}
+            >
+              {PIECE_SYMBOLS[hybridPiece]}
+            </span>
+          </div>
+          
+          <p className="text-sm text-[var(--text-primary)]">
+            {assignment.description}
+          </p>
+          
+          <p className="text-xs text-[var(--text-muted)]">
+            Spawn square: <span className="font-mono font-medium">{toAlgebraic(selectedSquare.row, selectedSquare.col)}</span>
+          </p>
+        </div>
+        
+        <div className="flex gap-3 justify-center">
+          <button
+            onClick={onCancel}
+            className="px-4 py-2 text-sm font-medium rounded bg-[var(--bg-elevated)] hover:bg-[var(--border-light)] text-[var(--text-primary)] transition-colors"
+            aria-label="Cancel and reselect"
           >
-            {PIECE_SYMBOLS[hybridPiece]}
-          </span>
-        </p>
-        <p className="text-sm sm:text-base text-teal-200">
-          → {assignment.description}
-        </p>
-        <p className="text-xs sm:text-sm text-teal-300 italic">
-          Spawn: {toAlgebraic(selectedSquare.row, selectedSquare.col)}
-        </p>
-      </div>
-      <div className="flex gap-2 sm:gap-3 md:gap-4 justify-center">
-        <button
-          onClick={onConfirm}
-          autoFocus
-          className="px-4 py-2 sm:px-6 sm:py-2.5 md:px-8 md:py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold rounded-lg sm:rounded-xl shadow-xl transition-all transform hover:scale-105 active:scale-95 focus:ring-2 sm:focus:ring-4 focus:ring-green-400 text-sm sm:text-base"
-          aria-label="Confirm de-combination"
-        >
-          ✓ Confirm
-        </button>
-        <button
-          onClick={onCancel}
-          className="px-4 py-2 sm:px-6 sm:py-2.5 md:px-8 md:py-3 bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white font-bold rounded-lg sm:rounded-xl shadow-xl transition-all transform hover:scale-105 active:scale-95 focus:ring-2 sm:focus:ring-4 focus:ring-gray-500 text-sm sm:text-base"
-          aria-label="Cancel and reselect"
-        >
-          ✗ Reselect
-        </button>
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            autoFocus
+            className="px-4 py-2 text-sm font-medium rounded bg-teal-600 hover:bg-teal-700 text-white transition-colors"
+            aria-label="Confirm split"
+          >
+            Confirm
+          </button>
+        </div>
       </div>
     </div>
   );

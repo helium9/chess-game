@@ -5,40 +5,69 @@ import { PIECE_SYMBOLS } from "../../utils/constants.js";
 import { getPieceStyling } from "../helpers/squareStyling.js";
 
 /**
- * CapturedPieces component - displays captured pieces for one color
+ * CapturedPieces component - displays captured pieces
+ * Supports vertical stacking for mobile when many pieces captured
  */
-const CapturedPieces = ({ title, pieces, isWhitePieces }) => {
-  const textColorClass = isWhitePieces ? "text-white" : "text-gray-900";
+const CapturedPieces = ({ 
+  pieces = [], 
+  isWhitePieces = true,
+  title = "",
+  compact = false,
+  vertical = false, // Stack vertically when true
+}) => {
+  // Sort pieces by value (most valuable first)
+  const pieceOrder = { q: 0, r: 1, b: 2, n: 3, p: 4 };
+  const sortedPieces = [...pieces].sort((a, b) => {
+    const aType = a.toLowerCase();
+    const bType = b.toLowerCase();
+    return (pieceOrder[aType] ?? 5) - (pieceOrder[bType] ?? 5);
+  });
 
-  return (
-    <div className="flex flex-col items-center transform transition-transform hover:scale-105">
-      <h3 className="text-amber-300 text-xs sm:text-sm md:text-base font-bold mb-2 sm:mb-3 tracking-wide drop-shadow-lg">
-        {title}
-      </h3>
-      <div className="min-h-12 sm:min-h-14 md:min-h-16 flex flex-wrap gap-1 sm:gap-2 items-start justify-center w-28 sm:w-32 md:w-36 bg-gradient-to-br from-slate-800 to-slate-900 p-2 sm:p-3 rounded-lg sm:rounded-xl border-2 border-amber-600/40 shadow-2xl backdrop-blur-sm">
-        {pieces.length > 0 ? (
-          pieces.map((piece, idx) => {
-            const pieceStyling = getPieceStyling(piece);
-            return (
-              <span
-                key={idx}
-                className={`text-xl sm:text-2xl md:text-3xl ${textColorClass} transition-transform hover:scale-125`}
-                style={{
-                  ...pieceStyling,
-                  fontFamily:
-                    "'Noto Sans Symbols 2', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif",
-                }}
-              >
-                {PIECE_SYMBOLS[piece]}
-              </span>
-            );
-          })
+  const pieceColorClass = isWhitePieces ? "text-white" : "text-gray-900";
+
+  if (compact) {
+    // Compact mode for mobile/sidebar
+    return (
+      <div className={`${vertical ? "flex flex-wrap gap-0.5 max-w-[60px]" : "flex flex-wrap gap-0.5"}`}>
+        {sortedPieces.length === 0 ? (
+          <span className="text-[var(--text-muted)] text-xs">–</span>
         ) : (
-          <span className="text-gray-600 text-xs sm:text-sm italic">
-            No captures
-          </span>
+          sortedPieces.map((piece, index) => (
+            <span
+              key={`${piece}-${index}`}
+              className={`text-base leading-none ${pieceColorClass}`}
+              style={{
+                ...getPieceStyling(piece),
+                fontFamily: "'Noto Sans Symbols 2', sans-serif",
+              }}
+            >
+              {PIECE_SYMBOLS[piece]}
+            </span>
+          ))
         )}
       </div>
+    );
+  }
+
+  // Full mode for sidebar
+  return (
+    <div className="flex flex-wrap gap-1">
+      {sortedPieces.length === 0 ? (
+        <span className="text-[var(--text-muted)] text-xs">None</span>
+      ) : (
+        sortedPieces.map((piece, index) => (
+          <span
+            key={`${piece}-${index}`}
+            className={`text-xl leading-none ${pieceColorClass}`}
+            style={{
+              ...getPieceStyling(piece),
+              fontFamily: "'Noto Sans Symbols 2', sans-serif",
+            }}
+          >
+            {PIECE_SYMBOLS[piece]}
+          </span>
+        ))
+      )}
     </div>
   );
 };

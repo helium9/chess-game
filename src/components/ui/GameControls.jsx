@@ -1,10 +1,10 @@
 "use client";
 
 import React from "react";
-import { capitalizeColor } from "../helpers/messageHelpers.js";
 
 /**
  * GameControls component - buttons for game actions
+ * chess.com-inspired minimal, icon-driven design
  */
 const GameControls = ({
   gameState,
@@ -13,8 +13,8 @@ const GameControls = ({
   onCombineToggle,
   onDeCombineToggle,
   onReset,
-  onResign, // New prop
-  onRematchRequest, // New prop
+  onResign,
+  onRematchRequest,
   combineMode,
   deCombineMode,
   promotionMode,
@@ -22,141 +22,212 @@ const GameControls = ({
   canRedoMove,
   hasEligiblePairs,
   hasEligibleHybrids,
-  gameMode = "singlePlayer", // Add gameMode prop
+  gameMode = "singlePlayer",
+  compact = false, // For sidebar compact mode
+  iconOnly = false, // For mobile horizontal strip
+  isConnected = true, // Default to true for single player, will be passed as false/true for P2P
 }) => {
-  // Disable undo/redo when any special mode is active
   const isSpecialModeActive = combineMode || deCombineMode || promotionMode;
-
-  // Hide reset button in multiplayer modes (host/guest)
   const showResetButton = gameMode !== "host" && gameMode !== "guest";
-
-  // Hide undo/redo in multiplayer and vsEngine modes (only show in singlePlayer)
   const showUndoRedo = gameMode === "singlePlayer";
-
-  // Check if game is over or in check
   const isGameOver = gameState.gameStatus?.isGameOver || false;
   const isInCheck = gameState.gameStatus?.isCheck || false;
 
+  // Icon-only button for mobile strip
+  if (iconOnly) {
+    return (
+      <div className="flex items-center gap-1">
+        {/* Undo - Single player only */}
+        {showUndoRedo && (
+          <button
+            onClick={onUndo}
+            disabled={!canUndoMove || isSpecialModeActive}
+            title="Undo"
+            className="p-1.5 rounded hover:bg-[var(--bg-elevated)] text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4" />
+            </svg>
+          </button>
+        )}
+
+        {/* Redo - Single player only */}
+        {showUndoRedo && (
+          <button
+            onClick={onRedo}
+            disabled={!canRedoMove || isSpecialModeActive}
+            title="Redo"
+            className="p-1.5 rounded hover:bg-[var(--bg-elevated)] text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10h-10a5 5 0 00-5 5v2M21 10l-4-4m4 4l-4 4" />
+            </svg>
+          </button>
+        )}
+
+        {/* Combine */}
+        <button
+          onClick={onCombineToggle}
+          disabled={(!combineMode && !hasEligiblePairs) || isGameOver || isInCheck}
+          aria-pressed={combineMode}
+          title={combineMode ? "Cancel Combine" : "Combine"}
+          className={`p-1.5 rounded transition-colors ${
+            combineMode 
+              ? "bg-purple-600 text-white" 
+              : "hover:bg-[var(--bg-elevated)] text-purple-400 disabled:opacity-30 disabled:cursor-not-allowed"
+          }`}
+        >
+          <span className="text-lg">🔮</span>
+        </button>
+
+        {/* De-Combine */}
+        <button
+          onClick={onDeCombineToggle}
+          disabled={(!deCombineMode && !hasEligibleHybrids) || isGameOver || isInCheck}
+          aria-pressed={deCombineMode}
+          title={deCombineMode ? "Cancel Split" : "Split"}
+          className={`p-1.5 rounded transition-colors ${
+            deCombineMode 
+              ? "bg-teal-600 text-white" 
+              : "hover:bg-[var(--bg-elevated)] text-teal-400 disabled:opacity-30 disabled:cursor-not-allowed"
+          }`}
+        >
+          <span className="text-lg">⚡</span>
+        </button>
+
+        {/* Resign - Multiplayer */}
+        {!showUndoRedo && !showResetButton && !isGameOver && (
+          <button
+            onClick={onResign}
+            disabled={!isConnected}
+            title={!isConnected ? "Waiting for opponent..." : "Resign"}
+            className="p-1.5 rounded hover:bg-[var(--bg-elevated)] text-[var(--accent-danger)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          >
+            <span className="text-lg">🏳️</span>
+          </button>
+        )}
+
+        {/* Rematch - Multiplayer game over */}
+        {!showUndoRedo && !showResetButton && isGameOver && (
+          <button
+            onClick={onRematchRequest}
+            title="Rematch"
+            className="p-1.5 rounded bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white transition-colors"
+          >
+            <span className="text-lg">🔄</span>
+          </button>
+        )}
+
+        {/* Reset - Single player and AI */}
+        {showResetButton && (
+          <button
+            onClick={onReset}
+            title="Reset"
+            className="p-1.5 rounded hover:bg-[var(--bg-elevated)] text-[var(--text-primary)] transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // Compact button layout for sidebar
   return (
-    <div className="mt-4 sm:mt-6 md:mt-8 flex gap-2 sm:gap-3 md:gap-4 flex-wrap justify-center px-2">
-      {/* Undo button - Only visible in single player mode */}
+    <div className={`flex flex-wrap gap-1.5 ${compact ? "justify-center" : "justify-center"}`}>
+      {/* Undo - Only in single player */}
       {showUndoRedo && (
         <button
           onClick={onUndo}
           disabled={!canUndoMove || isSpecialModeActive}
-          aria-label="Undo last move"
-          title={
-            isSpecialModeActive
-              ? "Cannot undo while in special mode"
-              : "Undo last move"
-          }
-          className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-bold rounded-lg sm:rounded-xl shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-orange-400 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:opacity-50"
+          title="Undo"
+          className="p-2 rounded bg-[var(--bg-elevated)] hover:bg-[var(--border-light)] text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
-          <span className="text-sm sm:text-base md:text-lg lg:text-xl">
-            ↶ Undo
-          </span>
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a5 5 0 015 5v2M3 10l4-4m-4 4l4 4" />
+          </svg>
         </button>
       )}
 
-      {/* Redo button - Only visible in single player mode */}
+      {/* Redo - Only in single player */}
       {showUndoRedo && (
         <button
           onClick={onRedo}
           disabled={!canRedoMove || isSpecialModeActive}
-          aria-label="Redo last undone move"
-          title={
-            isSpecialModeActive
-              ? "Cannot redo while in special mode"
-              : "Redo last undone move"
-          }
-          className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 bg-gradient-to-r from-orange-600 to-orange-700 hover:from-orange-700 hover:to-orange-800 text-white font-bold rounded-lg sm:rounded-xl shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-orange-400 disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:opacity-50"
+          title="Redo"
+          className="p-2 rounded bg-[var(--bg-elevated)] hover:bg-[var(--border-light)] text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
-          <span className="text-sm sm:text-base md:text-lg lg:text-xl">
-            ↷ Redo
-          </span>
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 10h-10a5 5 0 00-5 5v2M21 10l-4-4m4 4l-4 4" />
+          </svg>
         </button>
       )}
 
-      {/* Combine button */}
+      {/* Combine */}
       <button
         onClick={onCombineToggle}
-        disabled={
-          (!combineMode && !hasEligiblePairs) || isGameOver || isInCheck
-        }
-        role="button"
+        disabled={(!combineMode && !hasEligiblePairs) || isGameOver || isInCheck}
         aria-pressed={combineMode}
-        aria-label={combineMode ? "Cancel Combine Mode" : "Enter Combine Mode"}
-        title={isInCheck ? "Cannot combine while in check" : ""}
-        className={`px-4 py-2 sm:px-6 sm:py-3 md:px-8 md:py-4 font-bold rounded-lg sm:rounded-xl shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-purple-400 ${
-          combineMode
-            ? "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
-            : "bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed disabled:hover:scale-100"
+        title={combineMode ? "Cancel Combine" : "Combine Pieces"}
+        className={`px-3 py-2 rounded text-sm font-medium flex items-center gap-1 transition-colors ${
+          combineMode 
+            ? "bg-purple-600 hover:bg-purple-700 text-white" 
+            : "bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 disabled:opacity-30 disabled:cursor-not-allowed"
         }`}
       >
-        <span className="text-sm sm:text-base md:text-lg lg:text-xl whitespace-nowrap">
-          {combineMode ? "❌ Cancel" : "🔮 Combine"}
-        </span>
+        <span>🔮</span>
+        <span className="hidden sm:inline">{combineMode ? "Cancel" : "Combine"}</span>
       </button>
 
-      {/* De-Combine button */}
+      {/* De-Combine */}
       <button
         onClick={onDeCombineToggle}
-        disabled={
-          (!deCombineMode && !hasEligibleHybrids) || isGameOver || isInCheck
-        }
-        role="button"
+        disabled={(!deCombineMode && !hasEligibleHybrids) || isGameOver || isInCheck}
         aria-pressed={deCombineMode}
-        aria-label={
-          deCombineMode ? "Cancel De-Combine Mode" : "Enter De-Combine Mode"
-        }
-        title={isInCheck ? "Cannot de-combine while in check" : ""}
-        className={`px-4 py-2 sm:px-6 sm:py-3 md:px-8 md:py-4 font-bold rounded-lg sm:rounded-xl shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-teal-400 ${
-          deCombineMode
-            ? "bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white"
-            : "bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-700 hover:to-cyan-700 text-white disabled:from-gray-600 disabled:to-gray-700 disabled:cursor-not-allowed disabled:hover:scale-100"
+        title={deCombineMode ? "Cancel Split" : "Split Pieces"}
+        className={`px-3 py-2 rounded text-sm font-medium flex items-center gap-1 transition-colors ${
+          deCombineMode 
+            ? "bg-teal-600 hover:bg-teal-700 text-white" 
+            : "bg-teal-600/20 hover:bg-teal-600/30 text-teal-300 disabled:opacity-30 disabled:cursor-not-allowed"
         }`}
       >
-        <span className="text-sm sm:text-base md:text-lg lg:text-xl whitespace-nowrap">
-          {deCombineMode ? "❌ Cancel" : "⚡ De-Combine"}
-        </span>
+        <span>⚡</span>
+        <span className="hidden sm:inline">{deCombineMode ? "Cancel" : "Split"}</span>
       </button>
 
-      {/* Resign Button - shown in multiplayer when game is active */}
+      {/* Resign - Multiplayer when game active */}
       {!showUndoRedo && !showResetButton && !isGameOver && (
         <button
           onClick={onResign}
-          className="px-3 py-2 sm:px-4 sm:py-3 md:px-6 md:py-4 bg-gradient-to-r from-red-600 to-rose-700 hover:from-red-700 hover:to-rose-800 text-white font-bold rounded-lg sm:rounded-xl shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-red-400"
-          aria-label="Resign Game"
+          disabled={!isConnected}
+          title={!isConnected ? "Waiting for opponent..." : "Resign"}
+          className="px-3 py-2 rounded text-sm font-medium bg-[var(--accent-danger)] hover:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          <span className="text-sm sm:text-base md:text-lg lg:text-xl">
-             🏳️ Resign
-          </span>
+          🏳️ Resign
         </button>
       )}
 
-      {/* Rematch Button - shown in multiplayer when game is over */}
+      {/* Rematch - Multiplayer when game over */}
       {!showUndoRedo && !showResetButton && isGameOver && (
         <button
           onClick={onRematchRequest}
-          className="px-4 py-2 sm:px-6 sm:py-3 md:px-8 md:py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold rounded-lg sm:rounded-xl shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-green-400 animate-pulse"
-          aria-label="Request Rematch"
+          className="px-3 py-2 rounded text-sm font-medium bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white transition-colors"
         >
-          <span className="text-sm sm:text-base md:text-lg lg:text-xl whitespace-nowrap">
-            🔄 Rematch
-          </span>
+          🔄 Rematch
         </button>
       )}
 
-      {/* Reset button - Hidden in multiplayer modes */}
+      {/* Reset - Single player and AI modes */}
       {showResetButton && (
         <button
           onClick={onReset}
-          aria-label="Reset Game"
-          className="px-4 py-2 sm:px-6 sm:py-3 md:px-8 md:py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-lg sm:rounded-xl shadow-2xl transition-all duration-300 transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 sm:focus:ring-4 focus:ring-blue-400"
+          className="p-2 rounded bg-[var(--bg-elevated)] hover:bg-[var(--border-light)] text-[var(--text-primary)] transition-colors"
         >
-          <span className="text-sm sm:text-base md:text-lg lg:text-xl whitespace-nowrap">
-            🔄 Reset
-          </span>
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
         </button>
       )}
     </div>

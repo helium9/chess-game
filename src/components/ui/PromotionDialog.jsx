@@ -4,77 +4,75 @@ import React from "react";
 import { getPieceStyling } from "../helpers/squareStyling.js";
 
 /**
- * PromotionDialog component - displays promotion piece selection
+ * PromotionDialog component - shows correct pieces based on turn color
  */
 const PromotionDialog = ({ isOpen, currentTurn, onPromote }) => {
   if (!isOpen) return null;
 
+  const isWhite = currentTurn === "white";
+  
+  // Define pieces with correct symbols for each color
+  const pieces = [
+    { 
+      key: isWhite ? "Q" : "q", 
+      symbol: isWhite ? "♕" : "♛", 
+      name: "Queen" 
+    },
+    { 
+      key: isWhite ? "R" : "r", 
+      symbol: isWhite ? "♖" : "♜", 
+      name: "Rook" 
+    },
+    { 
+      key: isWhite ? "B" : "b", 
+      symbol: isWhite ? "♗" : "♝", 
+      name: "Bishop" 
+    },
+    { 
+      key: isWhite ? "N" : "n", 
+      symbol: isWhite ? "♘" : "♞", 
+      name: "Knight" 
+    },
+  ];
+
   return (
-    <div
-      className="mt-4 sm:mt-6 px-4 py-4 sm:px-6 sm:py-5 md:px-8 md:py-6 bg-gradient-to-br from-purple-700 via-purple-800 to-indigo-900 text-white rounded-xl sm:rounded-2xl shadow-2xl border-2 border-purple-400 max-w-xs sm:max-w-md md:max-w-lg mx-auto backdrop-blur-sm animate-fade-in"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="promotion-dialog-title"
-    >
-      <h3
-        id="promotion-dialog-title"
-        className="text-center mb-3 sm:mb-4 text-lg sm:text-xl font-bold"
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div
+        className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-4 shadow-xl max-w-sm w-full"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="promotion-dialog-title"
       >
-        Promote Your Pawn
-      </h3>
-      <p className="text-center mb-4 sm:mb-6 text-sm sm:text-base text-purple-200">
-        Choose piece to promote:
-      </p>
-      <div className="flex gap-2 sm:gap-3 md:gap-4 justify-center flex-wrap">
-        <button
-          onClick={() => onPromote(currentTurn === "white" ? "Q" : "q")}
-          autoFocus
-          className="px-4 py-3 sm:px-5 sm:py-3.5 md:px-6 md:py-4 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white font-bold rounded-lg sm:rounded-xl shadow-xl transition-all transform hover:scale-110 active:scale-95 focus:ring-2 sm:focus:ring-4 focus:ring-yellow-400 text-2xl sm:text-3xl md:text-4xl"
-          aria-label="Promote to Queen"
-          style={{
-            ...getPieceStyling(currentTurn === "white" ? "Q" : "q"),
-            fontFamily:
-              "'Noto Sans Symbols 2', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif",
-          }}
+        <h3
+          id="promotion-dialog-title"
+          className="text-center mb-3 text-base font-semibold text-[var(--text-primary)]"
         >
-          {currentTurn === "white" ? "♕" : "♛"}
-        </button>
-        <button
-          onClick={() => onPromote(currentTurn === "white" ? "R" : "r")}
-          className="px-4 py-3 sm:px-5 sm:py-3.5 md:px-6 md:py-4 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold rounded-lg sm:rounded-xl shadow-xl transition-all transform hover:scale-110 active:scale-95 focus:ring-2 sm:focus:ring-4 focus:ring-blue-400 text-2xl sm:text-3xl md:text-4xl"
-          aria-label="Promote to Rook"
-          style={{
-            ...getPieceStyling(currentTurn === "white" ? "R" : "r"),
-            fontFamily:
-              "'Noto Sans Symbols 2', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif",
-          }}
-        >
-          {currentTurn === "white" ? "♖" : "♜"}
-        </button>
-        <button
-          onClick={() => onPromote(currentTurn === "white" ? "B" : "b")}
-          className="px-4 py-3 sm:px-5 sm:py-3.5 md:px-6 md:py-4 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold rounded-lg sm:rounded-xl shadow-xl transition-all transform hover:scale-110 active:scale-95 focus:ring-2 sm:focus:ring-4 focus:ring-green-400 text-2xl sm:text-3xl md:text-4xl"
-          aria-label="Promote to Bishop"
-          style={{
-            ...getPieceStyling(currentTurn === "white" ? "B" : "b"),
-            fontFamily:
-              "'Noto Sans Symbols 2', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif",
-          }}
-        >
-          {currentTurn === "white" ? "♗" : "♝"}
-        </button>
-        <button
-          onClick={() => onPromote(currentTurn === "white" ? "N" : "n")}
-          className="px-4 py-3 sm:px-5 sm:py-3.5 md:px-6 md:py-4 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-bold rounded-lg sm:rounded-xl shadow-xl transition-all transform hover:scale-110 active:scale-95 focus:ring-2 sm:focus:ring-4 focus:ring-red-400 text-2xl sm:text-3xl md:text-4xl"
-          aria-label="Promote to Knight"
-          style={{
-            ...getPieceStyling(currentTurn === "white" ? "N" : "n"),
-            fontFamily:
-              "'Noto Sans Symbols 2', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif",
-          }}
-        >
-          {currentTurn === "white" ? "♘" : "♞"}
-        </button>
+          Promote Pawn
+        </h3>
+        
+        <div className="flex gap-2 justify-center">
+          {pieces.map((piece) => (
+            <button
+              key={piece.key}
+              onClick={() => onPromote(piece.key)}
+              autoFocus={piece.name === "Queen"}
+              className={`w-14 h-14 flex items-center justify-center rounded-md transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] ${
+                isWhite 
+                  ? "bg-[var(--board-light)] hover:bg-[var(--accent-primary)]" 
+                  : "bg-[var(--bg-elevated)] hover:bg-[var(--accent-primary)]"
+              }`}
+              aria-label={`Promote to ${piece.name}`}
+              title={piece.name}
+            >
+              <span
+                className={`text-3xl chess-piece ${isWhite ? "text-white" : "text-gray-900"}`}
+                style={getPieceStyling(piece.key)}
+              >
+                {piece.symbol}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

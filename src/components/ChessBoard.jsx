@@ -22,17 +22,15 @@ import useIdleTimeout from "./hooks/useIdleTimeout.js";
 import useGameStatus from "./hooks/useGameStatus.js";
 
 // UI Components
-import StatusMessage from "./ui/StatusMessage.jsx";
-import CombineModeIndicator from "./ui/CombineModeIndicator.jsx";
-import DeCombineModeIndicator from "./ui/DeCombineModeIndicator.jsx";
 import CapturedPieces from "./ui/CapturedPieces.jsx";
 import GameControls from "./ui/GameControls.jsx";
 import PromotionDialog from "./ui/PromotionDialog.jsx";
 import DeCombineConfirmDialog from "./ui/DeCombineConfirmDialog.jsx";
 import RematchDialog from "./ui/RematchDialog.jsx";
-import GameLegend from "./ui/GameLegend.jsx";
 import Timer from "./ui/Timer.jsx";
 import BoardGrid from "./ui/BoardGrid.jsx";
+import Sidebar from "./ui/Sidebar.jsx";
+import MoveHistory from "./ui/MoveHistory.jsx";
 
 import { TIMER_CONFIG } from "../config/timerConfig.js";
 
@@ -50,13 +48,11 @@ const ChessBoard = ({
   sendDisconnectNotification = null,
   selectedTimeControl = null,
 }) => {
-  // Use external game state if provided, otherwise use internal state
   const [internalGameState, setInternalGameState] = useState(
     createInitialGameState()
   );
   const gameState = externalGameState || internalGameState;
 
-  // Debug: Log when ChessBoard receives new gameState prop
   useEffect(() => {
     console.log("[SYNC DEBUG] ChessBoard gameState updated:", {
       currentTurn: gameState.currentTurn,
@@ -65,15 +61,7 @@ const ChessBoard = ({
     });
   }, [gameState, externalGameState]);
 
-  // Game state updater - calls parent callback if provided
   const updateGameState = (newGameState) => {
-    console.log("[SYNC DEBUG] ChessBoard updateGameState called:", {
-      hasCallback: !!onGameStateChange,
-      gameMode,
-      playerColor,
-      newTurn: newGameState.currentTurn,
-    });
-
     if (onGameStateChange) {
       onGameStateChange(newGameState);
     } else {
@@ -132,6 +120,12 @@ const ChessBoard = ({
   const canMakeMove = (piece, fromSquare = null) => {
     if (gameMode === "singlePlayer") {
       return true;
+    }
+
+    // Multiplayer: Must be connected
+    const isMultiplayer = gameMode === "host" || gameMode === "guest";
+    if (isMultiplayer && !isConnected) {
+      return false;
     }
 
     if (!piece) return false;
@@ -198,7 +192,7 @@ const ChessBoard = ({
     isSelectedSpawnSquare,
   } = useDeCombineMode(gameState, updateGameState, setMessage);
 
-  // Game controls hook (undo, redo, reset, resign)
+  // Game controls hook
   const { handleUndo, handleRedo, resetGame, handleResign } = useGameControls({
     gameState,
     updateGameState,
@@ -257,8 +251,15 @@ const ChessBoard = ({
     return () => window.removeEventListener("keydown", handleKeyPress);
   }, [combineMode, deCombine.mode, exitCombineMode, handleDeCombineEscape]);
 
-  // Route square clicks with move validation and double-tap detection
+  // Route square clicks
   const handleSquareClick = (row, col) => {
+    // Block interaction if waiting for opponent
+    const isMultiplayer = gameMode === "host" || gameMode === "guest";
+    if (isMultiplayer && !isConnected) {
+      setMessage("Waiting for opponent to join...");
+      return;
+    }
+
     if (gameState.gameStatus?.isGameOver) {
       setMessage("Game is over. Please reset to start a new game.");
       return;
@@ -268,7 +269,7 @@ const ChessBoard = ({
     const currentTime = Date.now();
     const timeSinceLastClick = currentTime - lastClickTime.current;
 
-    // DOUBLE-TAP DETECTION: Check if clicking same square within 300ms
+    // DOUBLE-TAP DETECTION
     if (
       lastClickedSquare.current &&
       lastClickedSquare.current.row === row &&
@@ -276,13 +277,10 @@ const ChessBoard = ({
       timeSinceLastClick < 300 &&
       timeSinceLastClick > 0
     ) {
-      // Double-tap detected on same square
       lastClickedSquare.current = null;
       lastClickTime.current = 0;
 
-      // Only process double-tap if piece can make moves
       if (piece && canMakeMove(piece, [row, col])) {
-        // Try De-Combine Mode first (Priority if Hybrid)
         if (isHybridPiece(piece)) {
           const isEligibleHybrid = eligibleHybrids.some(
             (h) => h.row === row && h.col === col
@@ -293,9 +291,7 @@ const ChessBoard = ({
             enterDeCombineMode({ row, col });
             return;
           }
-        }
-        // Try Combine Mode
-        else {
+        } else {
           const partnersThisPieceCanReach = eligiblePairs.filter((pair) => {
             if (pair.piece1.row === row && pair.piece1.col === col) {
               return canReachForCombine(
@@ -328,10 +324,8 @@ const ChessBoard = ({
           }
         }
       }
-      // If double-tap but not eligible, fall through to normal click handling
     }
 
-    // Update last click tracking
     lastClickedSquare.current = { row, col };
     lastClickTime.current = currentTime;
 
@@ -388,6 +382,13 @@ const ChessBoard = ({
   };
 
   const handleCombineToggle = () => {
+    // Block interaction if waiting for opponent
+    const isMultiplayer = gameMode === "host" || gameMode === "guest";
+    if (isMultiplayer && !isConnected) {
+      setMessage("Waiting for opponent to join...");
+      return;
+    }
+
     if (gameState.gameStatus?.isGameOver) {
       setMessage("Game is over. Please reset to start a new game.");
       return;
@@ -408,6 +409,13 @@ const ChessBoard = ({
   };
 
   const handleDeCombineToggle = () => {
+    // Block interaction if waiting for opponent
+    const isMultiplayer = gameMode === "host" || gameMode === "guest";
+    if (isMultiplayer && !isConnected) {
+      setMessage("Waiting for opponent to join...");
+      return;
+    }
+
     if (gameState.gameStatus?.isGameOver) {
       setMessage("Game is over. Please reset to start a new game.");
       return;
@@ -427,69 +435,120 @@ const ChessBoard = ({
     }
   };
 
+  // Check if timers should show
+  const showTimers = gameMode === "vsEngine" || (gameMode !== "singlePlayer" && isConnected);
+
+  // Get status message with mode indicator
+  const getStatusMessage = () => {
+    let status = message;
+    if (combineMode) status += " • 🔮 Combine Mode";
+    if (deCombine.mode) status += " • ⚡ Split Mode";
+    return status;
+  };
+
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 p-0 sm:p-4 relative overflow-hidden">
-      <div className="absolute inset-0 opacity-20">
-        <div className="absolute top-1/4 left-1/4 w-48 h-48 sm:w-96 sm:h-96 bg-purple-500 rounded-full blur-3xl animate-pulse"></div>
-        <div
-          className="absolute bottom-1/4 right-1/4 w-48 h-48 sm:w-96 sm:h-96 bg-blue-500 rounded-full blur-3xl animate-pulse"
-          style={{ animationDelay: "1s" }}
-        ></div>
+    <div className="flex flex-col h-[calc(100vh-48px)] bg-[var(--bg-primary)] overflow-hidden">
+      {/* Status Strip */}
+      <div className="w-full px-3 py-1.5 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] text-center flex-shrink-0">
+        <span className="text-sm font-medium text-[var(--text-primary)]">
+          {getStatusMessage()}
+        </span>
       </div>
 
-      <div className="flex flex-col items-center max-w-7xl w-full relative z-10">
-        <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-200 mb-2 sm:mb-4 md:mb-6 drop-shadow-2xl tracking-tight animate-fade-in px-2">
-          Interactive Chess
-        </h1>
-
-        <StatusMessage message={message} />
-        {combineMode && <CombineModeIndicator />}
-        {deCombine.mode && <DeCombineModeIndicator />}
-
-        <div className="flex flex-col lg:flex-row gap-2 sm:gap-6 lg:gap-8 flex-wrap justify-center w-full px-0 sm:px-4">
-          {/* Hide captured pieces on mobile, show on large screens */}
-          <div className="hidden lg:block">
-            <CapturedPieces
-              title="Captured by White"
-              pieces={gameState.capturedPieces.black}
-              isWhitePieces={false}
+      {/* ====== MOBILE LAYOUT ====== */}
+      <div className="lg:hidden flex-1 flex flex-col min-h-0 overflow-hidden">
+        {/* Board - at top */}
+        <div className="flex-shrink-0 flex justify-center p-2">
+          <div className="flex flex-col items-center">
+            <BoardGrid
+              gameState={gameState}
+              isBoardFlipped={isBoardFlipped}
+              isSelected={isSelected}
+              isLegalMoveSquare={isLegalMoveSquare}
+              isEligibleForCombine={isEligibleForCombine}
+              isEligiblePartner={isEligiblePartner}
+              isCombineAnchor={isCombineAnchor}
+              combineMode={combineMode}
+              combineAnchor={combineAnchor}
+              isEligibleForDeCombine={isEligibleForDeCombine}
+              isSelectedHybrid={isSelectedHybrid}
+              isSpawnSquare={isSpawnSquare}
+              isSelectedSpawnSquare={isSelectedSpawnSquare}
+              deCombine={deCombine}
+              handleSquareClick={handleSquareClick}
             />
           </div>
+        </div>
 
-          <div className="flex flex-col items-center gap-1 sm:gap-3 md:gap-4 flex-1 max-w-full lg:max-w-2xl">
-            {/* Timer for top player */}
-            {(gameMode === "vsEngine" ||
-              (gameMode !== "singlePlayer" && isConnected)) &&
-              timerStateRef && (
-                <Timer
-                  timerStateRef={timerStateRef}
-                  color={isBoardFlipped ? COLORS.WHITE : COLORS.BLACK}
-                  currentTurn={gameState.currentTurn}
-                  gameMode={gameMode}
-                  isConnected={isConnected}
-                  isReconnecting={isReconnecting}
-                  onTimeout={handleTimeout}
-                  isGameOver={gameState.gameStatus?.isGameOver || false}
-                />
+        {/* Controls - below board */}
+        <div className="flex-shrink-0 bg-[var(--bg-secondary)] border-t border-[var(--border-color)] px-3 py-2 flex items-center justify-center gap-2">
+          <GameControls
+            gameState={gameState}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            onCombineToggle={handleCombineToggle}
+            onDeCombineToggle={handleDeCombineToggle}
+            onReset={resetGame}
+            onResign={handleResign}
+            onRematchRequest={handleRematchRequest}
+            combineMode={combineMode}
+            deCombineMode={deCombine.mode}
+            promotionMode={promotionDialog.isOpen}
+            canUndoMove={canUndo(gameState)}
+            canRedoMove={canRedo(gameState)}
+            hasEligiblePairs={eligiblePairs.length > 0}
+            hasEligibleHybrids={eligibleHybrids.length > 0}
+            gameMode={gameMode}
+            iconOnly={true}
+            compact={true}
+            isConnected={isConnected}
+          />
+        </div>
+
+        {/* Captured pieces - 2 halves */}
+        <div className="flex-shrink-0 bg-[var(--bg-secondary)] border-t border-[var(--border-color)] px-3 py-2">
+          <div className="flex gap-4">
+            <div className="flex-1 min-h-[24px]">
+              <CapturedPieces pieces={gameState.capturedPieces.black} isWhitePieces={false} compact={true} />
+            </div>
+            <div className="flex-1 min-h-[24px]">
+              <CapturedPieces pieces={gameState.capturedPieces.white} isWhitePieces={true} compact={true} />
+            </div>
+          </div>
+        </div>
+
+        {/* Move history - fills remaining */}
+        <div className="flex-1 min-h-0 flex flex-col bg-[var(--bg-secondary)] border-t border-[var(--border-color)]">
+          <div className="px-3 py-1.5 border-b border-[var(--border-color)] flex-shrink-0">
+            <span className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide">Moves</span>
+          </div>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            <MoveHistory moveHistory={gameState.moveHistory} />
+          </div>
+        </div>
+      </div>
+
+      {/* ====== DESKTOP LAYOUT ====== */}
+      <div className="hidden lg:flex flex-1 justify-center min-h-0 overflow-hidden">
+        <div className="flex w-full max-w-[1200px] mx-auto gap-4">
+          {/* Board area */}
+          <div className="board-container flex items-center justify-center">
+            <div className="flex flex-col items-center">
+              {showTimers && timerStateRef && (
+                <div className="w-full mb-1">
+                  <Timer
+                    timerStateRef={timerStateRef}
+                    color={isBoardFlipped ? COLORS.WHITE : COLORS.BLACK}
+                    currentTurn={gameState.currentTurn}
+                    gameMode={gameMode}
+                    isConnected={isConnected}
+                    isReconnecting={isReconnecting}
+                    onTimeout={handleTimeout}
+                    isGameOver={gameState.gameStatus?.isGameOver || false}
+                    playerName={isBoardFlipped ? "White" : "Black"}
+                  />
+                </div>
               )}
-
-            <div className="flex items-center transform transition-all hover:scale-[1.01] sm:hover:scale-[1.02] w-full justify-center px-1 sm:px-0">
-              {/* Rank labels */}
-              <div className="flex flex-col-reverse gap-0 mr-0.5 sm:mr-2 md:mr-3">
-                {(isBoardFlipped
-                  ? [8, 7, 6, 5, 4, 3, 2, 1]
-                  : [1, 2, 3, 4, 5, 6, 7, 8]
-                ).map((rank) => (
-                  <div
-                    key={rank}
-                    className="h-8 sm:h-12 md:h-14 lg:h-16 flex items-center text-amber-400 text-[10px] sm:text-sm md:text-base font-bold drop-shadow-lg"
-                  >
-                    {rank}
-                  </div>
-                ))}
-              </div>
-
-              {/* Board Grid */}
               <BoardGrid
                 gameState={gameState}
                 isBoardFlipped={isBoardFlipped}
@@ -507,98 +566,75 @@ const ChessBoard = ({
                 deCombine={deCombine}
                 handleSquareClick={handleSquareClick}
               />
-            </div>
-
-            {/* Timer for bottom player */}
-            {(gameMode === "vsEngine" ||
-              (gameMode !== "singlePlayer" && isConnected)) &&
-              timerStateRef && (
-                <Timer
-                  timerStateRef={timerStateRef}
-                  color={isBoardFlipped ? COLORS.BLACK : COLORS.WHITE}
-                  currentTurn={gameState.currentTurn}
-                  gameMode={gameMode}
-                  isConnected={isConnected}
-                  isReconnecting={isReconnecting}
-                  onTimeout={handleTimeout}
-                  isGameOver={gameState.gameStatus?.isGameOver || false}
-                />
+              {showTimers && timerStateRef && (
+                <div className="w-full mt-1">
+                  <Timer
+                    timerStateRef={timerStateRef}
+                    color={isBoardFlipped ? COLORS.BLACK : COLORS.WHITE}
+                    currentTurn={gameState.currentTurn}
+                    gameMode={gameMode}
+                    isConnected={isConnected}
+                    isReconnecting={isReconnecting}
+                    onTimeout={handleTimeout}
+                    isGameOver={gameState.gameStatus?.isGameOver || false}
+                    playerName={isBoardFlipped ? "Black" : "White"}
+                  />
+                </div>
               )}
+            </div>
           </div>
-
-          {/* Hide captured pieces on mobile, show on large screens */}
-          <div className="hidden lg:block">
-            <CapturedPieces
-              title="Captured by Black"
-              pieces={gameState.capturedPieces.white}
-              isWhitePieces={true}
-            />
-          </div>
-        </div>
-
-        {/* Show captured pieces on mobile in a compact row */}
-        <div className="lg:hidden flex flex-row gap-2 sm:gap-4 justify-center items-start mt-2 sm:mt-4 w-full px-1">
-          <CapturedPieces
-            title="Captured by White"
-            pieces={gameState.capturedPieces.black}
-            isWhitePieces={false}
-          />
-          <CapturedPieces
-            title="Captured by Black"
-            pieces={gameState.capturedPieces.white}
-            isWhitePieces={true}
+          {/* Sidebar */}
+          <Sidebar
+            gameState={gameState}
+            moveHistory={gameState.moveHistory}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+            onCombineToggle={handleCombineToggle}
+            onDeCombineToggle={handleDeCombineToggle}
+            onReset={resetGame}
+            onResign={handleResign}
+            onRematchRequest={handleRematchRequest}
+            combineMode={combineMode}
+            deCombineMode={deCombine.mode}
+            promotionMode={promotionDialog.isOpen}
+            canUndoMove={canUndo(gameState)}
+            canRedoMove={canRedo(gameState)}
+            hasEligiblePairs={eligiblePairs.length > 0}
+            hasEligibleHybrids={eligibleHybrids.length > 0}
+            gameMode={gameMode}
+            isConnected={isConnected}
           />
         </div>
-
-        <GameControls
-          gameState={gameState}
-          onUndo={handleUndo}
-          onRedo={handleRedo}
-          onCombineToggle={handleCombineToggle}
-          onDeCombineToggle={handleDeCombineToggle}
-          onReset={resetGame}
-          onResign={handleResign}
-          onRematchRequest={handleRematchRequest}
-          combineMode={combineMode}
-          deCombineMode={deCombine.mode}
-          promotionMode={promotionDialog.isOpen}
-          canUndoMove={canUndo(gameState)}
-          canRedoMove={canRedo(gameState)}
-          hasEligiblePairs={eligiblePairs.length > 0}
-          hasEligibleHybrids={eligibleHybrids.length > 0}
-          gameMode={gameMode}
-        />
-
-        {deCombine.isConfirmOpen &&
-          deCombine.activeHybrid &&
-          deCombine.selectedSquare &&
-          deCombine.assignment && (
-            <DeCombineConfirmDialog
-              isOpen={true}
-              hybridPiece={deCombine.activeHybrid.piece}
-              assignment={deCombine.assignment}
-              selectedSquare={deCombine.selectedSquare}
-              onConfirm={executeDeCombine}
-              onCancel={closeConfirmDialog}
-            />
-          )}
-
-        <RematchDialog
-          isOpen={rematchState.isOpen}
-          requestFrom={rematchState.requestFrom}
-          proposedTimer={rematchState.proposedTimer}
-          onAccept={handleAcceptRematch}
-          onDecline={handleDeclineRematch}
-        />
-
-        <PromotionDialog
-          isOpen={promotionDialog.isOpen}
-          currentTurn={gameState.currentTurn}
-          onPromote={executePromotion}
-        />
-
-        <GameLegend deCombineMode={deCombine.mode} combineMode={combineMode} />
       </div>
+
+      {/* Dialogs */}
+      {deCombine.isConfirmOpen &&
+        deCombine.activeHybrid &&
+        deCombine.selectedSquare &&
+        deCombine.assignment && (
+          <DeCombineConfirmDialog
+            isOpen={true}
+            hybridPiece={deCombine.activeHybrid.piece}
+            assignment={deCombine.assignment}
+            selectedSquare={deCombine.selectedSquare}
+            onConfirm={executeDeCombine}
+            onCancel={closeConfirmDialog}
+          />
+        )}
+
+      <RematchDialog
+        isOpen={rematchState.isOpen}
+        requestFrom={rematchState.requestFrom}
+        proposedTimer={rematchState.proposedTimer}
+        onAccept={handleAcceptRematch}
+        onDecline={handleDeclineRematch}
+      />
+
+      <PromotionDialog
+        isOpen={promotionDialog.isOpen}
+        currentTurn={gameState.currentTurn}
+        onPromote={executePromotion}
+      />
     </div>
   );
 };

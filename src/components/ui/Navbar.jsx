@@ -1,7 +1,80 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { TIMER_CONFIG } from "../../config/timerConfig";
+
+/**
+ * Dropdown component for navbar
+ */
+const NavDropdown = ({ label, value, options, onChange, disabled = false, icon = null }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectedOption = options.find(opt => opt.value === value);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={() => !disabled && setIsOpen(!isOpen)}
+        disabled={disabled}
+        className={`
+          flex items-center gap-1.5 px-2.5 py-1.5 text-sm rounded
+          transition-colors duration-150
+          ${disabled 
+            ? "opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)]" 
+            : "hover:bg-[var(--bg-elevated)] cursor-pointer"
+          }
+          ${isOpen ? "bg-[var(--bg-elevated)]" : ""}
+        `}
+      >
+        {icon && <span className="text-base">{icon}</span>}
+        <span className="text-[var(--text-primary)]">{selectedOption?.label || label}</span>
+        <svg 
+          className={`w-3.5 h-3.5 text-[var(--text-muted)] transition-transform ${isOpen ? "rotate-180" : ""}`} 
+          fill="none" 
+          viewBox="0 0 24 24" 
+          stroke="currentColor"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {isOpen && !disabled && (
+        <div className="absolute top-full left-0 mt-1 min-w-[140px] bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-md shadow-lg z-50 py-1">
+          {options.map((option) => (
+            <button
+              key={option.value}
+              onClick={() => {
+                onChange(option.value);
+                setIsOpen(false);
+              }}
+              className={`
+                w-full px-3 py-1.5 text-left text-sm transition-colors
+                ${value === option.value 
+                  ? "bg-[var(--accent-primary)] text-white" 
+                  : "text-[var(--text-primary)] hover:bg-[var(--bg-elevated)]"
+                }
+              `}
+            >
+              {option.icon && <span className="mr-2">{option.icon}</span>}
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Navbar = ({
   webRTC,
@@ -14,12 +87,8 @@ const Navbar = ({
   isGameStarted = false,
 }) => {
   const [receiverIdInput, setReceiverIdInput] = useState("");
-  const [messages, setMessages] = useState([]);
-  const [testMessage, setTestMessage] = useState("");
-  const [showDebugPanel, setShowDebugPanel] = useState(false);
-  const [latency, setLatency] = useState(null);
-  const [measuringLatency, setMeasuringLatency] = useState(false);
   const [showCopied, setShowCopied] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const {
     isConnecting,
@@ -33,113 +102,36 @@ const Navbar = ({
     joinCall,
     disconnect,
     cancelCall,
-    sendGameState,
-    sendMove,
-    sendDebugMessage,
-    measureLatency,
   } = webRTC;
 
-  // Set up message handling via custom event (to avoid conflicts with App.jsx)
-  useEffect(() => {
-    const handleWebRTCMessage = (event) => {
-      const message = event.detail;
-
-      // Handle latency result specially
-      if (message.type === "latencyResult") {
-        setMeasuringLatency(false);
-        if (message.data.success) {
-          setLatency(message.data.latency);
-          setMessages((prev) => [
-            ...prev,
-            {
-              type: "system",
-              data: {
-                type: "latency",
-                latency: message.data.latency.toFixed(2),
-                rtt: message.data.rtt.toFixed(2),
-              },
-              timestamp: new Date().toLocaleTimeString(),
-            },
-          ]);
-        }
-        return;
-      }
-
-      // Handle all other messages
-      setMessages((prev) => [
-        ...prev,
-        {
-          type: "received",
-          data: message,
-          timestamp: new Date().toLocaleTimeString(),
-        },
-      ]);
-    };
-
-    window.addEventListener("webrtc-message", handleWebRTCMessage);
-
-    return () => {
-      window.removeEventListener("webrtc-message", handleWebRTCMessage);
-    };
-  }, []);
-
-  // Monitor connection state changes and reset UI when peer disconnects
+  // Reset UI when connection state changes
   useEffect(() => {
     if (
       connectionState === "disconnected" ||
       connectionState === "failed" ||
       connectionState === "closed"
     ) {
-      // Reset UI state when connection is lost
-      if (connectionState === "disconnected") {
-        // Add a disconnection message to the log
-        setMessages((prev) => [
-          ...prev,
-          {
-            type: "system",
-            data: { type: "system", message: "Peer disconnected" },
-            timestamp: new Date().toLocaleTimeString(),
-          },
-        ]);
-      }
-
-      // Reset local UI state after a brief delay
       const resetTimer = setTimeout(() => {
         setReceiverIdInput("");
-        setShowDebugPanel(false);
-        setTestMessage("");
-        // Keep messages for a bit longer so user can see what happened
-        setTimeout(() => {
-          setMessages([]);
-        }, 3000);
       }, 1000);
-
       return () => clearTimeout(resetTimer);
     }
   }, [connectionState]);
 
   const handleInitiateCall = async () => {
     try {
-      const callId = await createCall();
-      // console.log('Call created with ID:', callId);
+      await createCall();
     } catch (err) {
       console.error("Failed to create call:", err);
-      alert("Failed to create call: " + err.message);
     }
   };
 
   const handleAcceptCall = async () => {
-    if (!receiverIdInput.trim()) {
-      alert("Please enter a connection ID");
-      return;
-    }
-
+    if (!receiverIdInput.trim()) return;
     try {
       await joinCall(receiverIdInput.trim());
-      // console.log('Successfully joined call');
     } catch (err) {
       console.error("Failed to join call:", err);
-      alert("Failed to join call: " + err.message);
     }
   };
 
@@ -147,9 +139,6 @@ const Navbar = ({
     try {
       await disconnect();
       setReceiverIdInput("");
-      setMessages([]);
-      setTestMessage("");
-      // console.log('Disconnected successfully');
     } catch (err) {
       console.error("Failed to disconnect:", err);
     }
@@ -158,225 +147,340 @@ const Navbar = ({
   const handleCancelCall = async () => {
     try {
       await cancelCall();
-      // console.log('Call cancelled successfully');
     } catch (err) {
       console.error("Failed to cancel call:", err);
-    }
-  };
-
-  // Test message functions for debugging
-  const sendTestMessage = () => {
-    if (!testMessage.trim()) {
-      alert("Enter a test message");
-      return;
-    }
-
-    const message = {
-      type: "test",
-      content: testMessage,
-      sender: "local",
-    };
-
-    // Use the new sendDebugMessage method
-    const sent = sendDebugMessage(message);
-
-    if (sent) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          type: "sent",
-          data: { type: "debug", data: message },
-          timestamp: new Date().toLocaleTimeString(),
-        },
-      ]);
-      setTestMessage("");
-    }
-  };
-
-  const sendTestMove = () => {
-    const testMove = {
-      from: "e2",
-      to: "e4",
-      piece: "pawn",
-      timestamp: Date.now(),
-    };
-
-    sendMove(testMove);
-    setMessages((prev) => [
-      ...prev,
-      {
-        type: "sent",
-        data: { type: "move", data: testMove },
-        timestamp: new Date().toLocaleTimeString(),
-      },
-    ]);
-  };
-
-  const handleMeasureLatency = () => {
-    setMeasuringLatency(true);
-    const pingId = measureLatency();
-    if (!pingId) {
-      setMeasuringLatency(false);
-      alert("Failed to send ping");
     }
   };
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(connectionId);
     setShowCopied(true);
-    setTimeout(() => setShowCopied(false), 3500);
+    setTimeout(() => setShowCopied(false), 2000);
+  };
+
+  // Time control options
+  const timeControlOptions = Object.entries(TIMER_CONFIG.TIME_CONTROLS).map(
+    ([key, config]) => ({
+      value: key,
+      label: config.label,
+      icon: "⏱️",
+    })
+  );
+
+  // AI difficulty options
+  const difficultyOptions = [
+    { value: "EASY", label: "Easy", icon: "🟢" },
+    { value: "MEDIUM", label: "Medium", icon: "🟡" },
+    { value: "HARD", label: "Hard", icon: "🔴" },
+  ];
+
+  // Game mode badge
+  const getModeBadge = () => {
+    const badges = {
+      singlePlayer: { text: "Local", color: "bg-gray-600" },
+      vsEngine: { text: "vs AI", color: "bg-purple-600" },
+      host: { text: "Host", color: "bg-blue-600" },
+      guest: { text: "Guest", color: "bg-green-600" },
+    };
+    const badge = badges[gameMode] || badges.singlePlayer;
+    return (
+      <span className={`px-2 py-0.5 text-xs font-medium rounded ${badge.color} text-white`}>
+        {badge.text}
+      </span>
+    );
+  };
+
+  // Turn indicator
+  const getTurnIndicator = () => {
+    if (gameMode === "singlePlayer") return null;
+    
+    const isMyTurn = gameMode === "vsEngine" 
+      ? gameState?.currentTurn === "white"
+      : gameState?.currentTurn === playerColor;
+
+    return (
+      <span className={`
+        px-2 py-0.5 text-xs font-medium rounded
+        ${isMyTurn 
+          ? "bg-[var(--accent-primary)] text-white" 
+          : "bg-[var(--bg-tertiary)] text-[var(--text-muted)]"
+        }
+      `}>
+        {isMyTurn ? "Your turn" : "Waiting..."}
+      </span>
+    );
   };
 
   return (
-    <nav className="bg-slate-800 shadow-lg border-b border-slate-600">
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8">
-        <div className="flex flex-col justify-center items-center py-3 lg:py-0 lg:h-16 gap-3 lg:gap-0 lg:flex-row lg:justify-between">
-          {/* Logo/Title */}
-          <div className="flex flex-col lg:flex-row items-center gap-2 lg:gap-4 w-full lg:w-auto">
-            <div className="flex items-center gap-2 lg:gap-3">
-              <img
-                src="/logo.png"
-                alt="P2P Chess Logo"
-                className="w-8 h-8 lg:w-10 lg:h-10"
+    <nav className="flex flex-col bg-[var(--bg-secondary)] border-b border-[var(--border-color)]">
+      <div className="h-12 flex items-center px-3 lg:px-4">
+        <div className="flex items-center justify-between w-full max-w-screen-2xl mx-auto">
+        {/* Left section: Logo + Mode */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <img
+              src="/logo.png"
+              alt="P2P Chess"
+              className="w-7 h-7"
+            />
+            <span className="text-base font-semibold text-[var(--text-primary)] hidden sm:inline">
+              P2P Chess
+            </span>
+          </div>
+          
+          <div className="hidden sm:block w-px h-5 bg-[var(--border-color)]" />
+          
+          <div className="flex items-center gap-2">
+            {getModeBadge()}
+            {getTurnIndicator()}
+          </div>
+        </div>
+
+        {/* Desktop: Center/Right controls */}
+        <div className="hidden lg:flex items-center gap-1">
+          {/* Pre-game controls */}
+          {!isConnected && !isConnecting && gameMode !== "vsEngine" && (
+            <>
+              {/* Time Control */}
+              <NavDropdown
+                label="Time"
+                value={selectedTimeControl}
+                options={timeControlOptions}
+                onChange={onTimeControlChange}
+                disabled={isGameStarted}
+                icon="⏱️"
               />
-              <h1 className="text-lg lg:text-xl font-bold text-white">
-                P2P Chess
-              </h1>
-            </div>
 
-            {/* Game Mode Indicator */}
-            <div className="flex flex-row items-center gap-2 justify-center">
-              <span
-                className={`px-2 lg:px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
-                  gameMode === "singlePlayer"
-                    ? "bg-gray-600 text-gray-100"
-                    : gameMode === "vsEngine"
-                    ? "bg-purple-600 text-white"
-                    : gameMode === "host"
-                    ? "bg-blue-600 text-white"
-                    : gameMode === "guest"
-                    ? "bg-green-600 text-white"
-                    : "bg-gray-600 text-gray-100"
-                }`}
+              <div className="w-px h-5 bg-[var(--border-color)] mx-1" />
+
+              {/* AI Game */}
+              <button
+                onClick={() => onStartEngineGame(selectedTimeControl)}
+                disabled={isGameStarted}
+                className={`
+                  flex items-center gap-1.5 px-3 py-1.5 text-sm rounded font-medium
+                  transition-colors duration-150
+                  ${isGameStarted 
+                    ? "opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)] text-[var(--text-muted)]" 
+                    : "bg-purple-600 hover:bg-purple-700 text-white"
+                  }
+                `}
               >
-                {gameMode === "singlePlayer" && "🎮 Single"}
-                {gameMode === "vsEngine" && `🤖 vs AI`}
-                {gameMode === "host" && "👑 Host"}
-                {gameMode === "guest" && "🎯 Guest"}
-              </span>
+                <span>🤖</span>
+                <span>Play AI</span>
+              </button>
 
-              {gameState && gameMode !== "singlePlayer" && (
-                <span
-                  className={`px-2 py-1 rounded text-xs font-medium whitespace-nowrap ${
-                    gameMode === "vsEngine"
-                      ? gameState.currentTurn === "white"
-                        ? "bg-green-500 text-white animate-pulse"
-                        : "bg-gray-500 text-gray-200"
-                      : gameState.currentTurn === playerColor
-                      ? "bg-green-500 text-white animate-pulse"
-                      : "bg-gray-500 text-gray-200"
+              <NavDropdown
+                label="Difficulty"
+                value={aiDifficulty}
+                options={difficultyOptions}
+                onChange={onDifficultyChange}
+                disabled={isGameStarted}
+              />
+
+              <div className="w-px h-5 bg-[var(--border-color)] mx-1" />
+
+              {/* Multiplayer */}
+              <button
+                onClick={handleInitiateCall}
+                disabled={isGameStarted}
+                className={`
+                  flex items-center gap-1.5 px-3 py-1.5 text-sm rounded font-medium
+                  transition-colors duration-150
+                  ${isGameStarted 
+                    ? "opacity-50 cursor-not-allowed bg-[var(--bg-tertiary)] text-[var(--text-muted)]" 
+                    : "bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white"
+                  }
+                `}
+              >
+                <span>🎮</span>
+                <span>Create Game</span>
+              </button>
+
+              <div className="flex items-center gap-1.5 ml-1">
+                <input
+                  type="text"
+                  placeholder="Enter Game ID"
+                  value={receiverIdInput}
+                  onChange={(e) => setReceiverIdInput(e.target.value)}
+                  onKeyPress={(e) => e.key === "Enter" && handleAcceptCall()}
+                  className="w-36 px-2.5 py-1.5 text-sm bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)]"
+                />
+                <button
+                  onClick={handleAcceptCall}
+                  disabled={!receiverIdInput.trim()}
+                  className="px-3 py-1.5 text-sm rounded font-medium bg-[var(--bg-elevated)] hover:bg-[var(--border-light)] text-[var(--text-primary)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Join
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* AI Mode indicator */}
+          {gameMode === "vsEngine" && (
+            <div className="flex items-center gap-2 px-3 py-1 bg-purple-900/30 rounded border border-purple-600/30">
+              <span className="text-sm text-purple-300">Playing vs AI</span>
+              <span className="text-xs px-1.5 py-0.5 bg-purple-600 rounded text-white">
+                {aiDifficulty}
+              </span>
+            </div>
+          )}
+
+          {/* Waiting for connection */}
+          {isConnecting && !isConnected && (
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-[var(--text-secondary)]">Game ID:</span>
+                <code className="px-2 py-1 bg-[var(--bg-tertiary)] rounded text-sm font-mono text-[var(--accent-info)]">
+                  {connectionId}
+                </code>
+                <button
+                  onClick={copyToClipboard}
+                  className={`px-2 py-1 text-xs rounded transition-colors ${
+                    showCopied
+                      ? "bg-[var(--accent-primary)] text-white"
+                      : "bg-[var(--bg-elevated)] hover:bg-[var(--border-light)] text-[var(--text-primary)]"
                   }`}
                 >
-                  {gameMode === "vsEngine"
-                    ? gameState.currentTurn === "white"
-                      ? "Your Turn"
-                      : "AI..."
-                    : gameState.currentTurn === playerColor
-                    ? "Your Turn"
-                    : "Wait..."}
-                </span>
-              )}
+                  {showCopied ? "✓" : "Copy"}
+                </button>
+              </div>
+              <div className="flex items-center gap-2 text-yellow-500">
+                <div className="w-3 h-3 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm">Waiting...</span>
+              </div>
+              <button
+                onClick={handleCancelCall}
+                className="p-1.5 rounded hover:bg-[var(--bg-elevated)] text-[var(--accent-danger)]"
+                title="Cancel"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-          </div>
+          )}
 
-          {/* P2P Connection Controls */}
-          <div className="flex flex-col lg:flex-row flex-wrap items-center justify-center gap-2 w-full lg:w-auto">
+          {/* Connected state */}
+          {isConnected && (
+            <div className="flex items-center gap-3">
+              {/* Timer dropdown for rematch */}
+              {gameState?.gameStatus?.isGameOver && (
+                <NavDropdown
+                  label="Time"
+                  value={selectedTimeControl}
+                  options={timeControlOptions}
+                  onChange={onTimeControlChange}
+                  icon="⏱️"
+                />
+              )}
+              <div className="flex items-center gap-2 text-[var(--accent-primary)]">
+                <div className="w-2 h-2 bg-[var(--accent-primary)] rounded-full" />
+                <span className="text-sm font-medium">Connected</span>
+              </div>
+              <button
+                onClick={handleDisconnect}
+                className="px-3 py-1.5 text-sm rounded font-medium bg-[var(--accent-danger)] hover:bg-red-700 text-white transition-colors"
+              >
+                Leave
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Mobile: Hamburger menu */}
+        <button
+          onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          className="lg:hidden p-2 rounded hover:bg-[var(--bg-elevated)] text-[var(--text-primary)]"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            {mobileMenuOpen ? (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            ) : (
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            )}
+          </svg>
+        </button>
+      </div>
+    </div>
+
+      {/* Mobile dropdown menu - Pushes content down */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden w-full border-t border-[var(--border-color)] bg-[var(--bg-secondary)]">
+          <div className="p-3 space-y-3">
+            {/* Pre-game controls for mobile */}
             {!isConnected && !isConnecting && gameMode !== "vsEngine" && (
               <>
-                {/* Shared Time Control Dropdown */}
-                <select
-                  value={selectedTimeControl}
-                  onChange={(e) => onTimeControlChange(e.target.value)}
-                  disabled={isGameStarted}
-                  className={`text-white text-xs lg:text-sm px-2 py-1.5 lg:py-2 rounded-lg border focus:outline-none focus:border-blue-400 transition-colors ${
-                    isGameStarted
-                      ? "bg-gray-600 border-gray-500 cursor-not-allowed opacity-60"
-                      : "bg-slate-700 hover:bg-slate-600 border-slate-600 cursor-pointer"
-                  }`}
-                  title="Select time control"
-                >
-                  {Object.entries(TIMER_CONFIG.TIME_CONTROLS).map(
-                    ([key, config]) => (
-                      <option key={key} value={key}>
-                        ⏱️ {config.label}
-                      </option>
-                    )
-                  )}
-                </select>
-
-                {/* Engine Mode Button with Difficulty Selector */}
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <button
-                    onClick={() => onStartEngineGame(selectedTimeControl)}
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
+                    Time Control
+                  </label>
+                  <select
+                    value={selectedTimeControl}
+                    onChange={(e) => onTimeControlChange(e.target.value)}
                     disabled={isGameStarted}
-                    className={`px-3 py-1.5 lg:px-4 lg:py-2 rounded-lg font-medium transition-colors duration-200 flex items-center justify-center gap-1.5 text-xs lg:text-sm whitespace-nowrap flex-1 sm:flex-initial ${
-                      isGameStarted
-                        ? "bg-gray-600 cursor-not-allowed opacity-60"
-                        : "bg-purple-600 hover:bg-purple-700 text-white"
-                    }`}
-                    title="Play against AI"
+                    className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm"
                   >
-                    <span>🤖</span>
-                    <span>Play vs AI</span>
-                  </button>
+                    {timeControlOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.icon} {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      onStartEngineGame(selectedTimeControl);
+                      setMobileMenuOpen(false);
+                    }}
+                    disabled={isGameStarted}
+                    className="flex-1 px-3 py-2 text-sm rounded font-medium bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50"
+                  >
+                    🤖 Play AI
+                  </button>
                   <select
                     value={aiDifficulty}
                     onChange={(e) => onDifficultyChange(e.target.value)}
                     disabled={isGameStarted}
-                    className={`text-white text-xs lg:text-sm px-2 py-1.5 lg:py-2 rounded-lg border focus:outline-none focus:border-purple-400 transition-colors ${
-                      isGameStarted
-                        ? "bg-gray-600 border-gray-500 cursor-not-allowed opacity-60"
-                        : "bg-purple-700 hover:bg-purple-800 border-purple-600 cursor-pointer"
-                    }`}
-                    title="Select AI difficulty"
+                    className="px-2 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm"
                   >
-                    <option value="EASY">🟢 Easy</option>
-                    <option value="MEDIUM">🟡 Medium</option>
-                    <option value="HARD">🔴 Hard</option>
+                    {difficultyOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.icon} {opt.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
-                {/* Multiplayer Separator */}
-                <div className="hidden lg:block w-px h-8 bg-slate-600"></div>
+                <div className="h-px bg-[var(--border-color)]" />
 
-                {/* Multiplayer Start Game Button */}
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <button
-                    onClick={handleInitiateCall}
-                    disabled={isGameStarted}
-                    className={`px-3 py-1.5 lg:px-4 lg:py-2 rounded-lg font-medium transition-colors duration-200 text-xs lg:text-sm whitespace-nowrap ${
-                      isGameStarted
-                        ? "bg-gray-600 cursor-not-allowed opacity-60"
-                        : "bg-blue-600 hover:bg-blue-700 text-white"
-                    }`}
-                  >
-                    Start Game
-                  </button>
-                </div>
+                <button
+                  onClick={() => {
+                    handleInitiateCall();
+                  }}
+                  disabled={isGameStarted}
+                  className="w-full px-3 py-2 text-sm rounded font-medium bg-[var(--accent-primary)] hover:bg-[var(--accent-primary-hover)] text-white disabled:opacity-50"
+                >
+                  🎮 Create Multiplayer Game
+                </button>
 
-                {/* Join Game Section */}
-                <div className="flex items-center gap-2 w-full lg:w-auto">
+                <div className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="Game ID"
+                    placeholder="Enter Game ID"
                     value={receiverIdInput}
                     onChange={(e) => setReceiverIdInput(e.target.value)}
-                    className="bg-slate-700 text-white placeholder-slate-400 px-2 py-1.5 lg:px-3 lg:py-2 rounded-lg border border-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-xs lg:text-sm flex-1 min-w-0"
+                    className="flex-1 px-3 py-2 text-sm bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] placeholder-[var(--text-muted)]"
                   />
                   <button
-                    onClick={handleAcceptCall}
-                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 lg:px-4 lg:py-2 rounded-lg font-medium transition-colors duration-200 text-xs lg:text-sm whitespace-nowrap flex-shrink-0"
+                    onClick={() => {
+                      handleAcceptCall();
+                    }}
+                    disabled={!receiverIdInput.trim()}
+                    className="px-4 py-2 text-sm rounded font-medium bg-[var(--bg-elevated)] hover:bg-[var(--border-light)] text-[var(--text-primary)] disabled:opacity-50"
                   >
                     Join
                   </button>
@@ -384,299 +488,93 @@ const Navbar = ({
               </>
             )}
 
-            {/* AI Mode Controls - Shown when in vsEngine mode */}
-            {gameMode === "vsEngine" && (
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <div className="flex items-center gap-2 bg-purple-900/30 rounded-lg px-3 py-1.5 border border-purple-600/50">
-                  <span className="text-xs font-medium text-purple-300 whitespace-nowrap">
-                    AI:
-                  </span>
-                  <span className="text-xs font-semibold text-white">
-                    {aiDifficulty === "EASY" && "🟢 Easy"}
-                    {aiDifficulty === "MEDIUM" && "🟡 Medium"}
-                    {aiDifficulty === "HARD" && "🔴 Hard"}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* Waiting for Connection */}
+            {/* Waiting state for mobile */}
             {isConnecting && !isConnected && (
-              <div className="flex flex-col items-center gap-2 w-full lg:w-auto lg:flex-row lg:gap-4">
-                <div className="text-white text-center lg:text-left w-full lg:w-auto">
-                  <span className="text-xs lg:text-sm text-slate-300">
-                    Game ID:
-                  </span>
-                  <div className="flex items-center justify-center lg:justify-start space-x-2 mt-1">
-                    <code className="bg-slate-700 px-2 py-1 rounded text-blue-300 font-mono text-xs lg:text-sm overflow-hidden text-ellipsis">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-[var(--text-secondary)]">Game ID:</span>
+                  <div className="flex items-center gap-2">
+                    <code className="px-2 py-1 bg-[var(--bg-tertiary)] rounded text-xs font-mono text-[var(--accent-info)]">
                       {connectionId}
                     </code>
                     <button
                       onClick={copyToClipboard}
-                      className={`px-2 py-1 rounded text-xs transition-all duration-200 ${
-                        showCopied
-                          ? "bg-green-600 text-white"
-                          : "bg-slate-600 hover:bg-slate-500 text-white"
+                      className={`px-2 py-1 text-xs rounded ${
+                        showCopied ? "bg-[var(--accent-primary)] text-white" : "bg-[var(--bg-elevated)] text-[var(--text-primary)]"
                       }`}
                     >
-                      {showCopied ? "✓ Copied" : "Copy"}
+                      {showCopied ? "✓" : "Copy"}
                     </button>
                   </div>
                 </div>
-                <div className="flex items-center text-yellow-400">
-                  <div className="animate-spin rounded-full h-3 w-3 lg:h-4 lg:w-4 border-b-2 border-yellow-400 mr-2"></div>
-                  <span className="text-xs lg:text-sm">Waiting...</span>
-                </div>
-                <button
-                  onClick={handleCancelCall}
-                  className="bg-red-600 hover:bg-red-700 text-white p-2 rounded-lg transition-colors duration-200 flex items-center justify-center"
-                  title="Cancel connection"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-yellow-500">
+                    <div className="w-3 h-3 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin" />
+                    <span className="text-sm">Waiting for opponent...</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      handleCancelCall();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="px-3 py-1.5 text-sm rounded bg-[var(--accent-danger)] text-white"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
+                    Cancel
+                  </button>
+                </div>
               </div>
             )}
 
-            {/* Connected State */}
+            {/* Connected state for mobile */}
             {isConnected && (
-              <div className="flex flex-col lg:flex-row items-center gap-2 lg:gap-4 w-full lg:w-auto">
-                {/* Timer dropdown - show when game is over for rematch */}
+              <div className="flex flex-col gap-3">
+                {/* Timer dropdown for rematch on mobile */}
                 {gameState?.gameStatus?.isGameOver && (
-                  <select
-                    value={selectedTimeControl}
-                    onChange={(e) => onTimeControlChange(e.target.value)}
-                    className="text-white text-xs lg:text-sm px-2 py-1.5 lg:py-2 rounded-lg border bg-slate-700 hover:bg-slate-600 border-slate-600 cursor-pointer focus:outline-none focus:border-blue-400 transition-colors"
-                    title="Select time control for rematch"
-                  >
-                    {Object.entries(TIMER_CONFIG.TIME_CONTROLS).map(
-                      ([key, config]) => (
-                        <option key={key} value={key}>
-                          ⏱️ {config.label}
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs text-[var(--text-muted)] uppercase tracking-wide">
+                      Next Game Time
+                    </label>
+                    <select
+                      value={selectedTimeControl}
+                      onChange={(e) => onTimeControlChange(e.target.value)}
+                      className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm"
+                    >
+                      {timeControlOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.icon} {opt.label}
                         </option>
-                      )
-                    )}
-                  </select>
-                )}
-                <div className="flex items-center text-green-400">
-                  <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
-                  <span className="text-xs lg:text-sm">Connected</span>
-                </div>
-                <button
-                  onClick={() => setShowDebugPanel(!showDebugPanel)}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-2 lg:px-3 lg:py-2 rounded-lg font-medium transition-colors duration-200 text-xs lg:text-sm w-full sm:w-auto"
-                >
-                  Debug
-                </button>
-                <button
-                  onClick={handleDisconnect}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 lg:px-4 lg:py-2 rounded-lg font-medium transition-colors duration-200 text-xs lg:text-sm w-full sm:w-auto"
-                >
-                  Disconnect
-                </button>
-              </div>
-            )}
-
-            {/* Error Display */}
-            {error && (
-              <div className="flex items-center text-red-400">
-                <svg
-                  className="w-4 h-4 mr-2"
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <span className="text-sm">{error}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Debug Panel */}
-      {showDebugPanel && isConnected && (
-        <div className="bg-slate-900 border-t border-slate-600 px-4 py-4">
-          <div className="max-w-7xl mx-auto">
-            <h3 className="text-lg font-semibold text-white mb-4">
-              WebRTC Debug Panel
-            </h3>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Connection Info */}
-              <div className="space-y-3">
-                <h4 className="text-md font-medium text-slate-300">
-                  Connection Status
-                </h4>
-                <div className="bg-slate-800 p-3 rounded-lg">
-                  <div className="text-sm space-y-1">
-                    <div className="text-slate-300">
-                      <span className="font-medium">State:</span>
-                      <span
-                        className={`ml-2 px-2 py-1 rounded text-xs font-medium ${
-                          connectionState === "connected"
-                            ? "bg-green-600 text-white"
-                            : connectionState === "connecting"
-                            ? "bg-yellow-600 text-white"
-                            : connectionState === "failed"
-                            ? "bg-red-600 text-white"
-                            : "bg-gray-600 text-white"
-                        }`}
-                      >
-                        {connectionState}
-                      </span>
-                    </div>
-                    <div className="text-slate-300">
-                      <span className="font-medium">Call ID:</span>
-                      <code className="ml-2 text-blue-300 font-mono text-xs">
-                        {connectionId}
-                      </code>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Test Message Sender */}
-                <div className="space-y-2">
-                  <h5 className="text-sm font-medium text-slate-300">
-                    Send Test Message
-                  </h5>
-                  <div className="flex space-x-2">
-                    <input
-                      type="text"
-                      placeholder="Enter test message"
-                      value={testMessage}
-                      onChange={(e) => setTestMessage(e.target.value)}
-                      className="flex-1 bg-slate-700 text-white placeholder-slate-400 px-3 py-2 rounded border border-slate-600 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
-                      onKeyPress={(e) => e.key === "Enter" && sendTestMessage()}
-                    />
-                    <button
-                      onClick={sendTestMessage}
-                      disabled={!testMessage.trim()}
-                      className="bg-purple-600 hover:bg-purple-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white px-3 py-2 rounded font-medium transition-colors duration-200 text-sm"
-                    >
-                      Send
-                    </button>
-                  </div>
-                  <button
-                    onClick={sendTestMove}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded font-medium transition-colors duration-200 text-sm"
-                  >
-                    Send Test Move (e2→e4)
-                  </button>
-                </div>
-
-                {/* Latency Measurement */}
-                <div className="space-y-2">
-                  <h5 className="text-sm font-medium text-slate-300">
-                    Latency Measurement
-                  </h5>
-                  <div className="bg-slate-800 p-3 rounded-lg">
-                    {latency !== null && (
-                      <div className="text-center mb-2">
-                        <span className="text-2xl font-bold text-green-400">
-                          {latency.toFixed(2)} ms
-                        </span>
-                        <p className="text-xs text-slate-400 mt-1">
-                          Current Latency
-                        </p>
-                      </div>
-                    )}
-                    <button
-                      onClick={handleMeasureLatency}
-                      disabled={measuringLatency}
-                      className="w-full bg-green-600 hover:bg-green-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-white px-3 py-2 rounded font-medium transition-colors duration-200 text-sm flex items-center justify-center gap-2"
-                    >
-                      {measuringLatency ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                          <span>Measuring...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>📡</span>
-                          <span>Measure Latency</span>
-                        </>
-                      )}
-                    </button>
-                    <p className="text-xs text-slate-400 mt-2 text-center">
-                      Calculates RTT/2 (one-way latency)
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Message Log */}
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <h4 className="text-md font-medium text-slate-300">
-                    Message Log
-                  </h4>
-                  <button
-                    onClick={() => setMessages([])}
-                    className="bg-slate-600 hover:bg-slate-500 text-white px-2 py-1 rounded text-xs transition-colors duration-200"
-                  >
-                    Clear
-                  </button>
-                </div>
-                <div className="bg-slate-800 p-3 rounded-lg h-48 overflow-y-auto">
-                  {messages.length === 0 ? (
-                    <div className="text-slate-400 text-sm text-center py-8">
-                      No messages yet. Send a test message to see it here.
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {messages.map((msg, index) => (
-                        <div
-                          key={index}
-                          className={`text-xs p-2 rounded ${
-                            msg.type === "sent"
-                              ? "bg-blue-900 text-blue-100"
-                              : msg.type === "received"
-                              ? "bg-green-900 text-green-100"
-                              : msg.type === "system"
-                              ? "bg-yellow-900 text-yellow-100"
-                              : "bg-gray-900 text-gray-100"
-                          }`}
-                        >
-                          <div className="flex justify-between items-start mb-1">
-                            <span className="font-medium">
-                              {msg.type === "sent"
-                                ? "→ Sent"
-                                : msg.type === "received"
-                                ? "← Received"
-                                : msg.type === "system"
-                                ? "⚠ System"
-                                : "• Unknown"}
-                            </span>
-                            <span className="text-slate-400">
-                              {msg.timestamp}
-                            </span>
-                          </div>
-                          <pre className="text-xs overflow-x-auto">
-                            {JSON.stringify(msg.data, null, 2)}
-                          </pre>
-                        </div>
                       ))}
-                    </div>
-                  )}
+                    </select>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-[var(--accent-primary)]">
+                    <div className="w-2 h-2 bg-[var(--accent-primary)] rounded-full" />
+                    <span className="text-sm font-medium">Connected</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      handleDisconnect();
+                      setMobileMenuOpen(false);
+                    }}
+                    className="px-3 py-1.5 text-sm rounded font-medium bg-[var(--accent-danger)] text-white"
+                  >
+                    Leave Game
+                  </button>
                 </div>
               </div>
-            </div>
+            )}
+
+            {/* AI mode indicator for mobile */}
+            {gameMode === "vsEngine" && (
+              <div className="flex items-center justify-between py-2">
+                <span className="text-sm text-purple-300">Playing vs AI</span>
+                <span className="text-xs px-2 py-0.5 bg-purple-600 rounded text-white">
+                  {aiDifficulty}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )}
