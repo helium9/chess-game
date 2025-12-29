@@ -234,7 +234,7 @@ body {
 }
 
 /* Desktop: When BOTH wide AND tall, swap visibility */
-@media (min-width: 1024px) and (min-height: 600px) {
+@media (min-width: 1024px) and (min-height: 700px) {
   .mobile-layout {
     display: none !important;
   }
@@ -295,7 +295,7 @@ body {
 }
 
 /* Desktop with sidebar - board fills left side (requires BOTH wide AND tall) */
-@media (min-width: 1024px) and (min-height: 600px) {
+@media (min-width: 1024px) and (min-height: 700px) {
   .board-container {
     /* Limit width to create square area */
     max-width: calc(100vh - 80px);
