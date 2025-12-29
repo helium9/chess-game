@@ -456,7 +456,7 @@ const ChessBoard = ({
       </div>
 
       {/* ====== MOBILE LAYOUT ====== */}
-      <div className="lg:hidden flex flex-col">
+      <div className="mobile-layout flex-col">
         {/* Board - at top */}
         <div className="flex-shrink-0 flex justify-center p-2">
           <div className="flex flex-col items-center w-full">
@@ -549,20 +549,20 @@ const ChessBoard = ({
           </div>
         </div>
 
-        {/* Move history - fills remaining */}
-        <div className="flex-1 min-h-0 flex flex-col bg-[var(--bg-secondary)] border-t border-[var(--border-color)]">
+        {/* Move history - grows naturally but gets internal scroll after max height */}
+        <div className="flex flex-col bg-[var(--bg-secondary)] border-t border-[var(--border-color)] max-h-[50vh]">
           <div className="px-3 py-1.5 border-b border-[var(--border-color)] flex-shrink-0">
             <span className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide">Moves</span>
           </div>
-          <div className="flex-1 min-h-0 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto">
             <MoveHistory moveHistory={gameState.moveHistory} />
           </div>
         </div>
       </div>
 
       {/* ====== DESKTOP LAYOUT ====== */}
-      <div className="hidden lg:flex flex-1 justify-center min-h-0 overflow-hidden">
-        <div className="flex w-full max-w-[1200px] mx-auto gap-4">
+      <div className="desktop-layout flex-1 justify-center min-h-0 overflow-hidden">
+        <div className="flex h-full w-full max-w-[1200px] mx-auto gap-4">
           {/* Board area */}
           <div className="board-container flex items-center justify-center">
             <div className="flex flex-col items-center">

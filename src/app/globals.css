@@ -219,6 +219,31 @@ body {
   }
 }
 
+/* ============================================
+   Height-Aware Layout Utilities
+   Desktop layout requires BOTH sufficient width AND height
+   ============================================ */
+
+/* Base: Mobile layout shows, desktop hidden */
+.mobile-layout {
+  display: flex;
+}
+
+.desktop-layout {
+  display: none;
+}
+
+/* Desktop: When BOTH wide AND tall, swap visibility */
+@media (min-width: 1024px) and (min-height: 600px) {
+  .mobile-layout {
+    display: none !important;
+  }
+
+  .desktop-layout {
+    display: flex !important;
+  }
+}
+
 /* Chess piece font family */
 .chess-piece {
   font-family: 'Noto Sans Symbols 2', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
@@ -269,8 +294,8 @@ body {
   justify-content: center;
 }
 
-/* Desktop with sidebar - board fills left side */
-@media (min-width: 1024px) {
+/* Desktop with sidebar - board fills left side (requires BOTH wide AND tall) */
+@media (min-width: 1024px) and (min-height: 600px) {
   .board-container {
     /* Limit width to create square area */
     max-width: calc(100vh - 80px);

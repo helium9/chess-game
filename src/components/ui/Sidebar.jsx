@@ -33,7 +33,7 @@ const Sidebar = ({
   const [historyExpanded, setHistoryExpanded] = useState(true);
 
   return (
-    <div className="hidden lg:flex flex-col w-[280px] h-full bg-[var(--bg-primary)] border-l border-[var(--border-color)]/30">
+    <div className="desktop-layout flex-col w-[280px] h-full bg-[var(--bg-primary)] border-l border-[var(--border-color)]/30">
       {/* Captured Pieces Section - Compact */}
       <div className="px-3 py-2 border-b border-[var(--border-color)]">
         <div className="flex items-center justify-between mb-2">
@@ -61,11 +61,11 @@ const Sidebar = ({
         </div>
       </div>
 
-      {/* Move History Section - Resizable */}
-      <div className="flex-1 min-h-0 flex flex-col border-b border-[var(--border-color)]">
+      {/* Move History Section - Resizable with explicit max height */}
+      <div className="flex-1 min-h-0 max-h-[calc(100vh-300px)] flex flex-col border-b border-[var(--border-color)] overflow-hidden">
         <button
           onClick={() => setHistoryExpanded(!historyExpanded)}
-          className="flex items-center justify-between px-3 py-2 hover:bg-[var(--bg-elevated)] transition-colors"
+          className="flex items-center justify-between px-3 py-2 hover:bg-[var(--bg-elevated)] transition-colors flex-shrink-0"
         >
           <span className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide">
             Moves
