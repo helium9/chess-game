@@ -1,6 +1,6 @@
 {
-  "name": "P2P Chess – Combine & Split Pieces",
-  "short_name": "P2P Chess",
+  "name": "Combine Chess – Merge & Split Pieces Game",
+  "short_name": "Combine Chess",
   "description": "Play an innovative chess variant online: combine & split pieces, AI engine, and peer-to-peer multiplayer.",
   "start_url": "/",
   "display": "standalone",

@@ -19,29 +19,33 @@ export const viewport = {
 };
 
 export const metadata = {
-  metadataBase: new URL("https://www.p2p-chess.tech"),
+  metadataBase: new URL("https://combinechess.games"),
   title: {
-    default: "P2P Chess - Combine & Split Pieces Variant",
-    template: "%s | P2P Chess",
+    default: "Combine Chess - Merge & Split Pieces Online Game",
+    template: "%s | Combine Chess",
   },
   description:
-    "Play an innovative chess variant online: combine & split pieces (Rook+Bishop etc.), AI engine difficulty levels, and peer-to-peer WebRTC multiplayer.",
+    "Play Combine Chess online! An innovative chess variant where you can merge pieces (Rook+Bishop, Knight+Rook) and split them tactically. Features AI engine & real-time P2P multiplayer.",
   keywords: [
+    "combine chess",
+    "combine chess game",
+    "chess combine pieces",
+    "merge chess pieces",
+    "split chess pieces",
     "chess variant",
-    "combine pieces",
     "hybrid chess",
+    "fairy chess",
+    "online chess game",
     "multiplayer chess",
     "AI chess engine",
+    "free chess online",
+    "p2p chess",
     "WebRTC chess",
-    "fairy chess",
     "strategy game",
-    "online chess",
-    "free chess",
-    "browser game",
   ],
-  authors: [{ name: "P2P Chess Project" }],
-  creator: "P2P Chess Project",
-  publisher: "P2P Chess Project",
+  authors: [{ name: "Combine Chess" }],
+  creator: "Combine Chess",
+  publisher: "Combine Chess",
   robots: {
     index: true,
     follow: true,
@@ -58,18 +62,18 @@ export const metadata = {
     canonical: "/",
   },
   openGraph: {
-    title: "P2P Chess – Combine & Split Pieces",
+    title: "Combine Chess – Merge & Split Pieces Game",
     description:
-      "Novel chess variant with hybrid piece combinations, AI engine, and realtime peer‑to‑peer play.",
+      "Play an innovative chess variant where you merge and split pieces! Features AI difficulty levels and real-time peer-to-peer multiplayer.",
     type: "website",
-    url: "https://www.p2p-chess.tech/",
-    siteName: "P2P Chess",
+    url: "https://combinechess.games/",
+    siteName: "Combine Chess",
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "P2P Chess – Combine & Split Pieces",
-    description: "Hybrid chess variant with AI & P2P multiplayer.",
+    title: "Combine Chess – Merge & Split Pieces Game",
+    description: "Innovative chess variant with piece merging, AI engine & P2P multiplayer.",
   },
 };
 
@@ -79,19 +83,19 @@ export default function RootLayout({ children }) {
     "@graph": [
       {
         "@type": "WebSite",
-        name: "P2P Chess",
-        url: "https://www.p2p-chess.tech/",
+        name: "Combine Chess",
+        url: "https://combinechess.games/",
         description:
-          "Innovative chess variant with piece combination & splitting, AI, and peer-to-peer multiplayer.",
+          "Innovative chess variant where you can merge and split pieces. Play against AI or real players online.",
         inLanguage: "en",
         publisher: {
           "@type": "Organization",
-          name: "P2P Chess Project",
+          name: "Combine Chess",
         },
       },
       {
         "@type": "SoftwareApplication",
-        name: "P2P Chess",
+        name: "Combine Chess",
         applicationCategory: "GameApplication",
         operatingSystem: "Any",
         offers: {
@@ -100,7 +104,7 @@ export default function RootLayout({ children }) {
           priceCurrency: "USD",
         },
         description:
-          "Play an innovative chess variant online: combine & split pieces (Rook+Bishop etc.), AI engine difficulty levels, and peer‑to‑peer WebRTC multiplayer.",
+          "Play Combine Chess online! Merge pieces like Rook+Bishop or Knight+Rook and split them for tactical advantage. Features AI engine and real-time P2P multiplayer.",
       },
     ],
   };

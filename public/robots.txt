@@ -1,6 +1,12 @@
 User-agent: *
 Allow: /
-# Block sensitive or build directories if needed (uncomment lines below)
-# Disallow: /scripts/
-# Disallow: /tests/
-Sitemap: https://www.p2p-chess.tech/sitemap.xml
+
+# Allow all major search engine crawlers
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+# Primary sitemap
+Sitemap: https://combinechess.games/sitemap.xml
