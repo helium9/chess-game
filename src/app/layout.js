@@ -59,7 +59,7 @@ export const metadata = {
   },
   manifest: "/manifest.json",
   alternates: {
-    canonical: "/",
+    canonical: "https://combinechess.games/",
   },
   openGraph: {
     title: "Combine Chess – Merge & Split Pieces Game",
